@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { optionalEnv } from "../../_lib/env";
+import { difyStreamQuery, type DifyThinkingStep } from "../../_lib/dify";
 
 export const runtime = "edge";
 
@@ -38,6 +39,12 @@ type BiomarkerProjection = {
   overallHealth: number; // 0-100
 };
 
+type DrugInteraction = {
+  drug: string;
+  severity: "low" | "moderate" | "high" | "contraindicated";
+  description: string;
+};
+
 type TreatmentSimResponse = {
   treatmentName: string;
   efficacyScore: number; // 0-100
@@ -48,6 +55,8 @@ type TreatmentSimResponse = {
     risks: string[];
     sideEffects: string[];
   };
+  drugInteractions: DrugInteraction[];
+  thinkingSteps: DifyThinkingStep[];
   alternativeTreatments: Array<{
     name: string;
     efficacy: number;
@@ -216,36 +225,109 @@ export async function POST(req: Request) {
     // Try Dify for enhanced simulation if available
     let source: TreatmentSimResponse["source"] = "demo";
     let clinicalNotes = demoData.clinicalNotes || "";
+    let thinkingSteps: DifyThinkingStep[] = [];
+    let drugInteractions: DrugInteraction[] = [];
 
     const DIFY_API_KEY = optionalEnv("DIFY_API_KEY");
     const DIFY_API_URL = optionalEnv("DIFY_API_URL");
     const OPENAI_API_KEY = optionalEnv("OPENAI_API_KEY");
 
+    // Use Dify for drug interaction checking and clinical notes with streaming
     if (DIFY_API_KEY && DIFY_API_URL) {
       try {
-        const difyRes = await fetch(`${DIFY_API_URL}/chat-messages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${DIFY_API_KEY}`,
+        const query = `Treatment simulation and drug interaction check for: ${treatment.name} (${treatment.type}${treatment.dosage ? `, ${treatment.dosage}` : ""})
+
+Patient Information:
+- Age: ${patientProfile.age || "unknown"}
+- Sex: ${patientProfile.sex || "unknown"}
+- Conditions: ${patientProfile.conditions || "no known conditions"}
+- Current medications: ${patientProfile.currentMeds || "none"}
+- Known allergies: ${patientProfile.allergies || "NKDA"}
+
+Please analyze:
+1. Drug interactions with current medications
+2. Contraindications based on patient conditions
+3. Allergy cross-reactivity risks
+4. Expected treatment outcomes
+5. Monitoring recommendations
+
+Format your response with clear sections for INTERACTIONS, WARNINGS, and CLINICAL NOTES.`;
+
+        const difyResult = await difyStreamQuery({
+          query,
+          user: "digitwin-doctor",
+          inputs: {
+            treatment_name: treatment.name,
+            treatment_type: treatment.type,
+            dosage: treatment.dosage || "",
+            patient_conditions: patientProfile.conditions || "",
+            current_meds: patientProfile.currentMeds || "",
+            allergies: patientProfile.allergies || "",
           },
-          body: JSON.stringify({
-            inputs: {},
-            query: `Treatment simulation for ${treatment.name} (${treatment.type}) in patient with: ${patientProfile.conditions || "no known conditions"}. Current meds: ${patientProfile.currentMeds || "none"}. Allergies: ${patientProfile.allergies || "none"}. Provide clinical notes.`,
-            response_mode: "blocking",
-            user: "digitwin-doctor",
-          }),
         });
 
-        if (difyRes.ok) {
-          const difyData = await difyRes.json();
-          if (difyData.answer) {
-            clinicalNotes = difyData.answer;
-            source = "dify_enhanced";
+        if (difyResult) {
+          thinkingSteps = difyResult.thinkingSteps;
+          
+          // Parse the response for drug interactions
+          const lines = difyResult.answer.split("\n");
+          let currentSection = "";
+          
+          for (const line of lines) {
+            const trimmed = line.trim().toLowerCase();
+            
+            if (trimmed.includes("interaction")) {
+              currentSection = "interactions";
+            } else if (trimmed.includes("warning") || trimmed.includes("caution") || trimmed.includes("contraindication")) {
+              currentSection = "warnings";
+            } else if (trimmed.includes("clinical note") || trimmed.includes("recommendation")) {
+              currentSection = "notes";
+            }
+            
+            // Extract bullet points
+            if (line.trim().match(/^[-•*]\s/) || line.trim().match(/^\d+\.\s/)) {
+              const content = line.trim().replace(/^[-•*\d.]+\s*/, "").trim();
+              if (content && currentSection === "interactions") {
+                // Determine severity from content
+                let severity: DrugInteraction["severity"] = "low";
+                if (content.toLowerCase().includes("severe") || content.toLowerCase().includes("major") || content.toLowerCase().includes("contraindicated")) {
+                  severity = "contraindicated";
+                } else if (content.toLowerCase().includes("significant") || content.toLowerCase().includes("moderate")) {
+                  severity = "moderate";
+                } else if (content.toLowerCase().includes("high") || content.toLowerCase().includes("serious")) {
+                  severity = "high";
+                }
+                
+                drugInteractions.push({
+                  drug: patientProfile.currentMeds?.split(",")[0]?.trim() || treatment.name,
+                  severity,
+                  description: content,
+                });
+              }
+            }
+          }
+          
+          clinicalNotes = difyResult.answer;
+          source = "dify_enhanced";
+          
+          // Add default thinking steps if none were captured
+          if (thinkingSteps.length === 0) {
+            thinkingSteps = [
+              { step: 1, title: "Analyzing patient profile", content: `Reviewing conditions: ${patientProfile.conditions || "none"}`, timestamp: new Date().toISOString() },
+              { step: 2, title: "Checking drug interactions", content: `Evaluating ${treatment.name} against current medications`, timestamp: new Date().toISOString() },
+              { step: 3, title: "Generating clinical notes", content: "Preparing treatment recommendations", timestamp: new Date().toISOString() },
+            ];
           }
         }
       } catch (difyErr) {
         console.error("Dify enhancement failed:", difyErr);
+        // Add error step to thinking
+        thinkingSteps.push({
+          step: thinkingSteps.length + 1,
+          title: "Dify connection issue",
+          content: "Falling back to local analysis",
+          timestamp: new Date().toISOString(),
+        });
       }
     }
 
@@ -300,6 +382,8 @@ Provide clinical simulation notes.`,
         risks: [],
         sideEffects: [],
       },
+      drugInteractions,
+      thinkingSteps,
       alternativeTreatments: demoData.alternativeTreatments || [],
       monitoringRecommendations: demoData.monitoringRecommendations || [],
       clinicalNotes,

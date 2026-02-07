@@ -14,9 +14,18 @@ export async function callOpenAIJson<T>(args: {
   user: OpenAIUserMessage;
 }): Promise<T> {
   const apiKey = requireEnv("OPENAI_API_KEY");
-  const model = optionalEnv("OPENAI_MODEL") ?? "gpt-4.1-mini";
+  const model = optionalEnv("OPENAI_MODEL") ?? "gpt-4o-mini";
 
-  const res = await fetch("https://api.openai.com/v1/responses", {
+  // Convert content format for chat completions API
+  const userContent = args.user.content.map(part => {
+    if (part.type === "input_text") {
+      return { type: "text" as const, text: part.text };
+    } else {
+      return { type: "image_url" as const, image_url: { url: part.image_url } };
+    }
+  });
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       authorization: `Bearer ${apiKey}`,
@@ -24,9 +33,12 @@ export async function callOpenAIJson<T>(args: {
     },
     body: JSON.stringify({
       model,
-      instructions: args.instructions,
-      input: [args.user],
+      messages: [
+        { role: "system", content: args.instructions },
+        { role: "user", content: userContent },
+      ],
       temperature: 0.2,
+      response_format: { type: "json_object" },
     }),
   });
 
@@ -42,9 +54,9 @@ export async function callOpenAIJson<T>(args: {
     throw new Error("OpenAI returned non-JSON response");
   }
 
-  const outputText: string | undefined = payload?.output_text;
+  const outputText: string | undefined = payload?.choices?.[0]?.message?.content;
   if (!outputText) {
-    throw new Error("OpenAI response missing output_text");
+    throw new Error("OpenAI response missing content");
   }
 
   try {

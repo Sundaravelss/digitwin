@@ -9,7 +9,7 @@
 
 ## 🎯 Vision
 
-DigiTwin creates a **biological digital twin** that empowers users to understand their health without exposing raw biometric data. Inspired by [BioTwin.ai](https://biotwin.ai/), we simulate treatments, predict outcomes, and verify health achievements—all while keeping sensitive data private.
+DigiTwin creates a **biological digital twin** that empowers users to understand their health without exposing raw biometric data. We simulate treatments, predict outcomes, and verify health achievements—all while keeping sensitive data private.
 
 ---
 
@@ -21,25 +21,23 @@ DigiTwin creates a **biological digital twin** that empowers users to understand
 ├─────────────────┬─────────────────────┬─────────────────────────┤
 │  Patient Space  │   Doctor Space      │    Insurer Space        │
 ├─────────────────┼─────────────────────┼─────────────────────────┤
-│ • My DigiTwin   │ • Patient Deck      │ • Health Promos         │
-│ • Future Cast   │ • Treatment Sim     │ • Policy Decoder (RAG)  │
-│ • Nutrition     │ • Drug Interactions │ • Population Heatmap    │
-│   Coach (24/7)  │ • Evidence Search   │ • Verify & Reward (ZK)  │
-│ • Recovery      │                     │ • Risk Projector        │
-│   Coach         │                     │                         │
+│ • My DigiTwin   │ • Patient Status    │ • Promos Dashboard      │
+│ • Health        │ • Treatment Sim     │ • Policy Decoder (RAG)  │
+│   Companion     │   (+ Drug Check)    │ • Verify & Reward (ZK)  │
+│ • Nutrition     │                     │                         │
+│   Coach (24/7)  │                     │                         │
+│ • Health        │                     │                         │
+│   Benefits      │                     │                         │
 └─────────────────┴─────────────────────┴─────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Partner Technologies                         │
-├─────────────────┬─────────────────────┬─────────────────────────┤
-│    OpenAI       │       Dify          │         fal             │
-│  GPT-4o Vision  │  Workflows & RAG    │   Image Generation      │
-│  JSON Outputs   │  Web Scraping       │   Future Self Viz       │
-├─────────────────┴─────────────────────┴─────────────────────────┤
-│              Gradium (Browser Web Speech API)                    │
-│                    Voice-Enabled Coaching                        │
-└─────────────────────────────────────────────────────────────────┘
+├─────────────────┬─────────────────┬─────────────────┬───────────┤
+│    OpenAI       │      Dify       │      fal        │  Gradium  │
+│  GPT-4o Vision  │ Workflows & RAG │ Image Generation│  Browser  │
+│  JSON Outputs   │  Web Scraping   │ Future Self Viz │ Speech API│
+└─────────────────┴─────────────────┴─────────────────┴───────────┘
 ```
 
 ---
@@ -53,30 +51,26 @@ DigiTwin creates a **biological digital twin** that empowers users to understand
 | **Onboarding** | Personalized setup with health goals, wearable selection, dietary preferences (skippable) |
 | **My DigiTwin** | Avatar visualization + Integrity Score from biomarker data (steps, sleep, heart rate, HRV, BP) |
 | **Wearables Integration** | Connect Apple Watch, Fitbit, Garmin, Samsung, WHOOP, Oura Ring |
-| **Future Cast** | Simulate medication interactions, food impact, and future self aging |
+| **Health Companion** | AI chat companion—show health trends, simulate food/medication impact, get personalized insights |
 | **Nutrition Coach (24/7)** | AI-powered nutrition guidance available anytime—meal planning, portion control, healthy alternatives |
 | **Food Scanner** | Upload food images → calorie estimation + burn suggestions |
 | **Deep-Scan Nutritionist** | Dify workflow scrapes official nutrition PDFs for hidden sodium, trans fats, glucose impact |
-| **Recovery Coach** | Gradium voice sessions for post-op or wellness coaching |
+| **Health Benefits** | View and enroll in insurance health promos—earn rewards for achieving health goals |
 
 ### 🩺 Doctor Space
 
 | Feature | Description |
 |---------|-------------|
-| **Patient Deck** | View anonymized patients with Stable/At Risk/Critical badges |
-| **Treatment Simulation** | BioTwin-inspired simulation—see projected biomarkers over 30/90/180 days |
-| **Drug Interactions** | Drag-and-drop drug simulation with Dify web search for 2024-2025 studies |
-| **Evidence Search** | Retrieve medical literature links via Dify Knowledge Base |
+| **My Patients Status** | View anonymized patients with Stable/At Risk/Critical badges |
+| **Treatment Simulation** | Select patient → view biomarkers → simulate treatment with drug interaction checking (Dify-powered) |
 
 ### 🏦 Insurer Space
 
 | Feature | Description |
 |---------|-------------|
-| **Health Promos** | Launch gamified challenges—users earn discounts for meeting health goals |
+| **Promos Dashboard** | KPI cards, enrollment funnel, category breakdown, and full program performance table |
 | **Policy Decoder** | Dify RAG answers "Is gym membership covered?" from policy documents |
-| **Population Heatmap** | Aggregate risk view—no individual identities exposed |
 | **Verify & Reward** | Zero-Knowledge proof concept—user proves "burned >500 cal" without exposing raw data |
-| **Risk Projector** | Financial projections based on population health mix |
 
 ---
 
@@ -140,17 +134,15 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Endpoint | Purpose |
 |----------|---------|
+| `POST /api/health-companion` | AI health companion (trends, food, medication impact) |
 | `POST /api/nutrition/coach` | 24/7 Nutrition coach chat |
 | `POST /api/nutrition/analyze` | Food image → calorie estimate |
 | `POST /api/nutrition/deep-scan` | Deep nutritional analysis (Dify) |
-| `POST /api/med-sim` | Drug interaction simulation |
-| `POST /api/doctor/treatment-sim` | BioTwin-style treatment simulation |
+| `POST /api/doctor/treatment-sim` | Treatment simulation + drug interaction check |
 | `POST /api/future-self` | Habit-based aging visualization |
 | `POST /api/policy/decoder` | Policy RAG queries |
-| `POST /api/insurer/promos` | Health promo management |
+| `POST /api/insurer/promos` | Health promo dashboard data |
 | `POST /api/verify/proof` | Zero-Knowledge proof generation |
-| `POST /api/evidence` | Medical literature search |
-| `POST /api/recover/voice` | Voice coaching responses |
 
 ---
 
@@ -206,18 +198,18 @@ digitwin/
 │   │   └── api/
 │   │       ├── _lib/             # Shared utilities
 │   │       │   ├── env.ts
-│   │       │   ├── dify.ts
+│   │       │   ├── dify.ts       # Dify streaming + interactions
 │   │       │   ├── openai.ts
 │   │       │   └── fal.ts
+│   │       ├── health-companion/ # AI health companion chat
 │   │       ├── nutrition/
 │   │       │   ├── coach/        # 24/7 nutrition chat
 │   │       │   ├── analyze/      # Food image analysis
 │   │       │   └── deep-scan/    # Dify nutritional scan
 │   │       ├── doctor/
-│   │       │   └── treatment-sim/ # BioTwin simulation
+│   │       │   └── treatment-sim/ # Treatment sim + drug check
 │   │       ├── insurer/
 │   │       │   └── promos/       # Health promo system
-│   │       ├── med-sim/          # Drug interactions
 │   │       ├── future-self/      # Aging visualization
 │   │       ├── policy/decoder/   # Policy RAG
 │   │       └── verify/proof/     # ZK proof demo
@@ -225,6 +217,8 @@ digitwin/
 │   │   └── Onboarding.tsx        # User onboarding flow
 │   └── lib/
 │       └── demoBiomarkers.ts     # Demo health data
+├── docs/
+│   └── DIFY_WORKFLOW_SETUP.md    # Dify setup guide
 ├── public/
 ├── package.json
 └── README.md
@@ -240,15 +234,16 @@ digitwin/
 
 ### Dify (Optional)
 - **Chatflows**: Nutrition analysis workflows
-- **Web Scraping**: Fetch 2024-2025 drug studies
+- **Drug Interaction Check**: Fetch latest drug studies via web scraping
 - **RAG**: Policy document Q&A
+- **Streaming**: Real-time agent thinking visualization
 
 ### fal.ai (Optional)
 - **Image Generation**: Future Self visualization
 - **Metabolic Consequences**: Visual representations
 
 ### Gradium (Browser-native)
-- **Web Speech API**: Voice input for coaching sessions
+- **Web Speech API**: Voice input for nutrition coaching
 - **No external dependency**: Works in modern browsers
 
 ---
