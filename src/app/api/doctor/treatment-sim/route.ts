@@ -5,6 +5,7 @@ import { difyWorkflowRun, type DifyThinkingStep } from "../../_lib/dify";
 export const runtime = "nodejs";
 
 type TreatmentSimRequest = {
+  patientId?: string;
   patientProfile: {
     age?: number;
     sex?: string;
@@ -242,11 +243,13 @@ function buildDemoResponse(
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as TreatmentSimRequest;
-    const { patientProfile, treatment, simulationDays = 90 } = body;
+    const { patientId, patientProfile, treatment, simulationDays = 90 } = body;
 
     if (!treatment?.name) {
       return new NextResponse("Treatment name is required", { status: 400 });
     }
+
+    const effectivePatientId = patientId || "PT-001";
 
     // ── Try Dify Treatment Workflow first ──
     const DIFY_TREATMENT_KEY = optionalEnv("DIFY_TREATMENT_API_KEY");
@@ -256,9 +259,12 @@ export async function POST(req: Request) {
       try {
         const result = await difyWorkflowRun({
           inputs: {
-            patient_id: "PT_001",
+            patient_id: effectivePatientId,
             treatment_name: `${treatment.name}${treatment.dosage ? ` ${treatment.dosage}` : ""}`,
             treatment_type: treatment.type,
+            dosage: treatment.dosage || "",
+            duration: treatment.duration || "",
+            simulation_days: String(simulationDays),
           },
           user: "digitwin-doctor",
           apiKeyEnv: "DIFY_TREATMENT_API_KEY",

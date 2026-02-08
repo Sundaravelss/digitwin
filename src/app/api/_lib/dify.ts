@@ -200,7 +200,7 @@ export async function difyFileUpload(args: {
   apiKeyEnv?: string;
 }): Promise<DifyUploadedFile | null> {
   const baseUrl = optionalEnv("DIFY_API_URL");
-  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY") || optionalEnv("DIFY_API_KEY");
   if (!baseUrl || !apiKey) return null;
 
   const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/files/upload`;
@@ -263,7 +263,7 @@ export async function difyWorkflowRun(args: {
   apiKeyEnv?: string; // env var name for the API key, defaults to DIFY_INTAKE_API_KEY
 }): Promise<DifyWorkflowResponse | null> {
   const baseUrl = optionalEnv("DIFY_API_URL");
-  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY") || optionalEnv("DIFY_API_KEY");
   if (!baseUrl || !apiKey) return null;
 
   const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/workflows/run`;
@@ -315,7 +315,7 @@ export async function difyWorkflowStream(args: {
   response: Response;
 } | null> {
   const baseUrl = optionalEnv("DIFY_API_URL");
-  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY") || optionalEnv("DIFY_API_KEY");
   if (!baseUrl || !apiKey) return null;
 
   const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/workflows/run`;

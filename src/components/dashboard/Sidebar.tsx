@@ -1,4 +1,4 @@
-import { Home, Users, Building2, Activity, Settings, LogOut, BrainCircuit, Gift, Dna, ClipboardList, FlaskConical, BarChart3, FileSearch, ShieldCheck, Stethoscope } from "lucide-react";
+import { Home, Users, Building2, Activity, Settings, LogOut, BrainCircuit, Gift, Dna, ClipboardList, FlaskConical, BarChart3, FileSearch, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -36,7 +36,7 @@ export const DigiTwinIcon = ({ className }: { className?: string }) => (
 );
 type UserRole = "patient" | "doctor" | "insurer";
 type PatientTab = "home" | "companion" | "benefits" | "biodata";
-type DoctorTab = "patients" | "simulator" | "intake";
+type DoctorTab = "patients" | "simulator";
 type InsurerTab = "promos" | "decoder" | "verify";
 interface SidebarProps {
   activeRole: UserRole;
@@ -67,12 +67,8 @@ const doctorTabs = [{
   icon: ClipboardList
 }, {
   id: "simulator",
-  label: "Treatment Simulator",
+  label: "Treatment Simulation",
   icon: FlaskConical
-}, {
-  id: "intake",
-  label: "Intake Analyzer",
-  icon: Stethoscope
 }];
 const insurerTabs = [{
   id: "promos",

@@ -5,9 +5,12 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
+} from "recharts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { profileCardData, healthProfileForAI } from "@/data/patientData";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -139,48 +142,157 @@ function NutritionCard({ data }: { data: NonNullable<SimulationData["nutritional
   );
 }
 
+const CHART_COLORS: Record<string, { stroke: string; fill: string }> = {
+  glucose_mg_dl: { stroke: "#ef4444", fill: "#ef444430" },
+  resting_heart_rate: { stroke: "#ec4899", fill: "#ec489930" },
+  crp_mg_l: { stroke: "#f97316", fill: "#f9731630" },
+  systolic: { stroke: "#8b5cf6", fill: "#8b5cf630" },
+  energy_level: { stroke: "#22c55e", fill: "#22c55e30" },
+  hba1c_pct: { stroke: "#3b82f6", fill: "#3b82f630" },
+  ldl_mg_dl: { stroke: "#f59e0b", fill: "#f59e0b30" },
+  cortisol_nmol_l: { stroke: "#d946ef", fill: "#d946ef30" },
+};
+
+const CHART_LABELS: Record<string, { label: string; unit: string }> = {
+  glucose_mg_dl: { label: "Glucose", unit: "mg/dL" },
+  resting_heart_rate: { label: "Heart Rate", unit: "bpm" },
+  crp_mg_l: { label: "CRP", unit: "mg/L" },
+  systolic: { label: "BP Systolic", unit: "mmHg" },
+  energy_level: { label: "Energy", unit: "%" },
+  hba1c_pct: { label: "HbA1c", unit: "%" },
+  ldl_mg_dl: { label: "LDL", unit: "mg/dL" },
+  cortisol_nmol_l: { label: "Cortisol", unit: "nmol/L" },
+};
+
 function BiomarkerProjections({ simulation }: { simulation: NonNullable<SimulationData["simulation"]> }) {
   const projections = simulation.projections;
   const timepoints = simulation.timepoints;
   if (!projections || !timepoints) return null;
 
-  const metrics = [
-    { key: "glucose_mg_dl", label: "Glucose", unit: "mg/dL", color: "bg-red-500" },
-    { key: "resting_heart_rate", label: "Heart Rate", unit: "bpm", color: "bg-pink-500" },
-    { key: "crp_mg_l", label: "CRP", unit: "mg/L", color: "bg-orange-500" },
-    { key: "systolic", label: "BP Systolic", unit: "mmHg", color: "bg-purple-500" },
-  ].filter((m) => projections[m.key]?.length);
+  const metricKeys = Object.keys(projections).filter(
+    (k) => projections[k] && projections[k]!.length > 0
+  );
+  if (metricKeys.length === 0) return null;
 
-  if (metrics.length === 0) return null;
+  // Build chart data: [{ time: "0h", glucose_mg_dl: 108, ... }, ...]
+  const chartData = timepoints.map((t, i) => {
+    const point: Record<string, string | number> = { time: t };
+    for (const key of metricKeys) {
+      point[key] = projections[key]![i] ?? 0;
+    }
+    return point;
+  });
+
+  // Summary: baseline vs peak/final for each metric
+  const summaries = metricKeys.map((key) => {
+    const values = projections[key]!;
+    const baseline = values[0] ?? 0;
+    const final = values[values.length - 1] ?? 0;
+    const peak = Math.max(...values);
+    const min = Math.min(...values);
+    const delta = final - baseline;
+    const info = CHART_LABELS[key] || { label: key, unit: "" };
+    return { key, baseline, final, peak, min, delta, ...info };
+  });
 
   return (
-    <div className="mt-3 space-y-2">
-      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Biomarker Projections</div>
-      {metrics.map((m) => {
-        const values = projections[m.key] || [];
-        const baseline = values[0] ?? 0;
-        const peak = Math.max(...values);
-        const delta = peak - baseline;
-        const direction = delta > 0 ? "+" : "";
-        return (
-          <div key={m.key} className="flex items-center gap-3">
-            <div className="w-24 text-xs text-muted-foreground truncate">{m.label}</div>
-            <div className="flex-1 h-2 bg-secondary/60 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full ${m.color} transition-all`}
-                style={{ width: `${Math.min(100, baseline > 0 ? (peak / (baseline * 1.5)) * 100 : 50)}%` }}
+    <div className="mt-3 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        Biomarker Projections
+      </div>
+
+      {/* Chart */}
+      <div className="bg-secondary/30 rounded-xl p-3 border border-border/30">
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+            <defs>
+              {metricKeys.map((key) => {
+                const c = CHART_COLORS[key] || { stroke: "#94a3b8", fill: "#94a3b830" };
+                return (
+                  <linearGradient key={key} id={`grad-${key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={c.stroke} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={c.stroke} stopOpacity={0.02} />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+              width={40}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                fontSize: "11px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+              labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+              formatter={(value: number, name: string) => {
+                const info = CHART_LABELS[name] || { label: name, unit: "" };
+                return [`${value} ${info.unit}`, info.label];
+              }}
+            />
+            <Legend
+              iconType="circle"
+              iconSize={6}
+              wrapperStyle={{ fontSize: "10px", paddingTop: "4px" }}
+              formatter={(value: string) => (CHART_LABELS[value]?.label || value)}
+            />
+            {metricKeys.map((key) => {
+              const c = CHART_COLORS[key] || { stroke: "#94a3b8", fill: "#94a3b830" };
+              return (
+                <Area
+                  key={key}
+                  type="monotone"
+                  dataKey={key}
+                  stroke={c.stroke}
+                  strokeWidth={2}
+                  fill={`url(#grad-${key})`}
+                  dot={{ r: 3, fill: c.stroke, strokeWidth: 0 }}
+                  activeDot={{ r: 5, stroke: c.stroke, strokeWidth: 2, fill: "white" }}
+                />
+              );
+            })}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Metric summary pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {summaries.map((s) => {
+          const isUp = s.delta > 0;
+          const sign = isUp ? "+" : "";
+          const color = isUp ? "text-red-500" : "text-green-500";
+          return (
+            <span
+              key={s.key}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/50 text-[10px] font-medium border border-border/30"
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: (CHART_COLORS[s.key] || { stroke: "#94a3b8" }).stroke }}
               />
-            </div>
-            <div className="text-xs font-mono w-24 text-right">
-              {baseline.toFixed(0)} &rarr; {peak.toFixed(0)}
-              <span className={delta > 0 ? " text-red-500" : " text-green-500"}> ({direction}{delta.toFixed(0)})</span>
-            </div>
-          </div>
-        );
-      })}
+              {s.label}: {s.baseline.toFixed(s.unit === "%" && s.baseline < 10 ? 1 : 0)} → {s.final.toFixed(s.unit === "%" && s.final < 10 ? 1 : 0)}
+              <span className={color}>({sign}{s.delta.toFixed(s.unit === "%" && Math.abs(s.delta) < 10 ? 1 : 0)})</span>
+            </span>
+          );
+        })}
+      </div>
+
       {simulation.peak_glucose_time && (
         <div className="text-[10px] text-muted-foreground">
-          Peak at {simulation.peak_glucose_time} &middot; Returns to baseline: {simulation.return_to_baseline || "~2-4h"}
+          Peak at {simulation.peak_glucose_time} · Returns to baseline: {simulation.return_to_baseline || "~2–4h"}
         </div>
       )}
     </div>
@@ -215,7 +327,65 @@ function ActivitySuggestions({ activities }: { activities: NonNullable<Simulatio
   );
 }
 
-function SimulationResultCard({ data }: { data: SimulationData }) {
+function HealthScoreImpact({ impact }: { impact: NonNullable<NonNullable<SimulationData["simulation"]>["health_score_impact"]> }) {
+  const items = [
+    { label: "Metabolic", value: impact.metabolic, icon: Activity },
+    { label: "Cardiovascular", value: impact.cardiovascular, icon: Heart },
+    { label: "Overall", value: impact.overall, icon: Zap },
+  ].filter((i) => i.value != null);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Health Score Impact</div>
+      <div className="flex gap-2">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const val = item.value!;
+          const isPositive = val > 0;
+          const sign = isPositive ? "+" : "";
+          return (
+            <div
+              key={item.label}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
+                isPositive
+                  ? "bg-green-500/10 text-green-600 border-green-500/30"
+                  : "bg-red-500/10 text-red-600 border-red-500/30"
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+              <span>{item.label}</span>
+              <span className="font-semibold">{sign}{val}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SuggestionPills({ suggestions, onSuggestionClick }: { suggestions: string[]; onSuggestionClick?: (text: string) => void }) {
+  if (!suggestions || suggestions.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Suggestions</div>
+      <div className="flex flex-wrap gap-1.5">
+        {suggestions.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => onSuggestionClick?.(s)}
+            className="text-[11px] px-2.5 py-1 rounded-full bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 hover:border-primary/40 transition-colors cursor-pointer"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SimulationResultCard({ data, onSuggestionClick }: { data: SimulationData; onSuggestionClick?: (text: string) => void }) {
   return (
     <div className="space-y-2">
       {data.text_summary && (
@@ -244,8 +414,16 @@ function SimulationResultCard({ data }: { data: SimulationData }) {
         <BiomarkerProjections simulation={data.simulation} />
       )}
 
+      {data.simulation?.health_score_impact && (
+        <HealthScoreImpact impact={data.simulation.health_score_impact} />
+      )}
+
       {data.activity_suggestions && (
         <ActivitySuggestions activities={data.activity_suggestions} />
+      )}
+
+      {data.suggestions && data.suggestions.length > 0 && (
+        <SuggestionPills suggestions={data.suggestions} onSuggestionClick={onSuggestionClick} />
       )}
 
       {data.concern && (
@@ -306,79 +484,81 @@ const HealthCompanion = () => {
     }
 
     try {
-      const useSimulation = isSimulationQuery(msgText) || !!imageFile;
+      // ── ALL queries route to /api/patient-intake (Dify workflow) ──
+      // The Dify workflow internally classifies intent as "simulation" or
+      // "general_chat" and routes accordingly.
+      setLoadingStatus(
+        isSimulationQuery(msgText) || imageFile
+          ? "Running DigiTwin simulation..."
+          : "Thinking..."
+      );
 
-      if (useSimulation) {
-        // ── Route to /api/patient-intake (Dify workflow) ──
-        setLoadingStatus("Running DigiTwin simulation...");
+      let res: Response;
 
-        const res = await fetch("/api/patient-intake", {
+      if (imageFile) {
+        // Send as FormData when image is attached
+        const formData = new FormData();
+        formData.append("itemText", msgText || "Analyze this food image");
+        formData.append("patientId", "PT_001");
+        formData.append("simulationWindow", "both");
+        formData.append("stream", "false");
+        formData.append("image", imageFile);
+
+        res = await fetch("/api/patient-intake", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        // Send as JSON when no image
+        res = await fetch("/api/patient-intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             itemText: msgText,
             patientId: "PT_001",
-            imageUrl: null,
             simulationWindow: "both",
             stream: false,
           }),
         });
-
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
-        const data = await res.json();
-
-        // Dify workflow returns outputs.answer; demo fallback uses outputs.text
-        const outputText: string = data.outputs?.answer || data.outputs?.text || data.outputs?.result || "";
-
-        // Try to parse structured JSON from the Dify workflow
-        const simData = tryParseSimulationJson(outputText);
-
-        const assistantMessage: ChatMessage = {
-          role: "assistant",
-          content: simData?.text_summary || outputText || "Simulation complete.",
-          simulationData: simData,
-        };
-        setChatHistory((prev) => [...prev, assistantMessage]);
-      } else {
-        // ── Route to /api/health-companion (general chat) ──
-        setLoadingStatus("Thinking...");
-
-        const formData = new FormData();
-        formData.append("message", msgText);
-        formData.append("profile", JSON.stringify({
-          age: profileCardData.age,
-          sex: profileCardData.gender,
-          weight: profileCardData.weight,
-          conditions: healthProfileForAI.dietaryNeeds.join(", "),
-          allergies: "Penicillin",
-        }));
-        formData.append("biomarkers", JSON.stringify({
-          glucoseMgDl: healthProfileForAI.glucose,
-          totalCholesterol: healthProfileForAI.cholesterol,
-          bloodPressure: healthProfileForAI.bloodPressure,
-          heartRate: healthProfileForAI.heartRate,
-          energyLevel: 70,
-          inflammationIndex: 25,
-        }));
-        formData.append("history", JSON.stringify(chatHistory.slice(-6)));
-        if (imageFile) {
-          formData.append("image", imageFile);
-        }
-
-        const res = await fetch("/api/health-companion", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
-        const data = await res.json();
-
-        const assistantMessage: ChatMessage = {
-          role: "assistant",
-          content: data.reply || "Sorry, I couldn't process that request.",
-        };
-        setChatHistory((prev) => [...prev, assistantMessage]);
       }
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+
+      // Dify workflow returns outputs.answer; demo fallback uses outputs.text
+      const outputText: string = data.outputs?.answer || data.outputs?.text || data.outputs?.result || "";
+
+      // Try to parse structured JSON from the Dify workflow response
+      const simData = tryParseSimulationJson(outputText);
+
+      // If it's simulation data, show the rich simulation card
+      // If it's general chat (has "reply" field), show as markdown
+      // Otherwise show raw text
+      let chatReply = "";
+      if (simData?.text_summary) {
+        chatReply = simData.text_summary;
+      } else if (!simData && outputText) {
+        // Try to parse as general chat response (has "reply" field)
+        try {
+          const parsed = JSON.parse(outputText);
+          if (parsed.reply) {
+            chatReply = parsed.reply;
+          } else {
+            chatReply = outputText;
+          }
+        } catch {
+          chatReply = outputText;
+        }
+      } else {
+        chatReply = outputText || data.reply || "Sorry, I couldn't process that request.";
+      }
+
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: chatReply,
+        simulationData: simData,
+      };
+      setChatHistory((prev) => [...prev, assistantMessage]);
     } catch (err) {
       console.error("Health Companion send error:", err);
       setChatHistory((prev) => [
@@ -479,7 +659,7 @@ const HealthCompanion = () => {
               )}
 
               {msg.role === "assistant" && msg.simulationData ? (
-                <SimulationResultCard data={msg.simulationData} />
+                <SimulationResultCard data={msg.simulationData} onSuggestionClick={handleSuggestionClick} />
               ) : msg.role === "assistant" ? (
                 <div className="text-sm prose prose-sm dark:prose-invert max-w-none [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_table]:border-collapse [&_th]:border [&_th]:border-border/50 [&_td]:border [&_td]:border-border/50 [&_th]:bg-secondary/50">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>

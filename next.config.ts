@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     rules: {
       "*.md": {
-        loaders: ["raw-loader"],
+        loaders: [require.resolve("raw-loader")],
         as: "*.js",
       },
     },

@@ -1,7 +1,7 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef, useMemo, Suspense } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useRef, useMemo, useState, useCallback, useEffect, Suspense } from "react";
 import { Mesh, Group, Vector3, CatmullRomCurve3 } from "three";
 import { useGLTF } from "@react-three/drei";
 
@@ -154,6 +154,21 @@ const OrbitRing = ({
   );
 };
 
+/** Monitors the WebGL context and signals the parent to re-mount when lost */
+const ContextWatchdog = ({ onContextLost }: { onContextLost: () => void }) => {
+  const { gl } = useThree();
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleLost = (e: Event) => {
+      e.preventDefault();
+      onContextLost();
+    };
+    canvas.addEventListener("webglcontextlost", handleLost);
+    return () => canvas.removeEventListener("webglcontextlost", handleLost);
+  }, [gl, onContextLost]);
+  return null;
+};
+
 const LoadingFallback = () => (
   <div className="w-full h-full flex flex-col items-center justify-center gap-3">
     <div className="w-14 h-14 border-3 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -162,6 +177,15 @@ const LoadingFallback = () => (
 );
 
 const Avatar3D = ({ isGenerating }: Avatar3DProps) => {
+  const [canvasKey, setCanvasKey] = useState(0);
+
+  const handleContextLost = useCallback(() => {
+    // Clear the useGLTF cache so the model is re-loaded on next mount
+    useGLTF.clear(MODEL_URL);
+    // Force full re-mount of Canvas after a short delay
+    setTimeout(() => setCanvasKey((k) => k + 1), 500);
+  }, []);
+
   return (
     <div className="w-full h-full relative">
       {isGenerating && (
@@ -175,9 +199,10 @@ const Avatar3D = ({ isGenerating }: Avatar3DProps) => {
 
       <Suspense fallback={<LoadingFallback />}>
         <Canvas
+          key={canvasKey}
           camera={{ position: [0, 0.3, 2.8], fov: 45 }}
           style={{ background: "transparent" }}
-          gl={{ alpha: true, antialias: true }}
+          gl={{ alpha: true, antialias: true, powerPreference: "default" }}
         >
           <ambientLight intensity={0.7} />
           <directionalLight position={[5, 5, 5]} intensity={1.2} />
@@ -190,6 +215,7 @@ const Avatar3D = ({ isGenerating }: Avatar3DProps) => {
             intensity={1.5}
           />
 
+          <ContextWatchdog onContextLost={handleContextLost} />
           <HumanModel />
 
           {/* Single spiral helix */}

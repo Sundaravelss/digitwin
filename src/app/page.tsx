@@ -13,7 +13,6 @@ import InsurerPromosDashboard from "@/components/dashboard/InsurerPromosDashboar
 import ZeroKnowledgeVerify from "@/components/dashboard/ZeroKnowledgeVerify";
 import PolicyDecoder from "@/components/dashboard/PolicyDecoder";
 import BiologicalData from "@/components/dashboard/BiologicalData";
-import PatientIntakeAnalyzer from "@/components/dashboard/PatientIntakeAnalyzer";
 import SettingsDialog from "@/components/dashboard/SettingsDialog";
 import StatisticsChart from "@/components/dashboard/StatisticsChart";
 import ActivitySummary from "@/components/dashboard/ActivitySummary";
@@ -118,11 +117,6 @@ export default function Home() {
                 {activeTab === "simulator" && (
                   <div className="animate-content-reveal">
                     <TreatmentSimulator />
-                  </div>
-                )}
-                {activeTab === "intake" && (
-                  <div className="animate-content-reveal">
-                    <PatientIntakeAnalyzer />
                   </div>
                 )}
               </>
