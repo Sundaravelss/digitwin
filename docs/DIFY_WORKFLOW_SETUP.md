@@ -50,6 +50,27 @@ Both workflows are designed to be **agentic**: they autonomously retrieve data f
 
 ---
 
+## Quick Start: Import Pre-Built Workflows
+
+Two ready-to-import Dify workflow DSL files are available in `docs/dify-workflows/`:
+
+| File | Use Case | Nodes |
+|------|----------|-------|
+| `digitwin-patient-intake-workflow.yml` | Patient Health Companion (food/med analysis) | Start → KB → Classify → IF food/med → USDA/OpenFDA → Cross-Reference LLM → Simulation LLM → Code Validate → Answer |
+| `digitwin-treatment-sim-workflow.yml` | Doctor Treatment Simulator | Start → KB + OpenFDA (parallel) → PGx LLM → DDI LLM → Safety LLM → Trajectory LLM → Summary LLM → Code Validate → Answer |
+
+### Import Steps
+
+1. **Create Knowledge Base first**: In Dify, go to **Knowledge** → **Create Knowledge Base** → name it `patient-profiles` → upload all 5 Markdown files from `docs/knowledge-base/` → wait for indexing to complete
+2. **Copy your KB ID**: It's visible in the browser URL when viewing the KB (e.g. `https://cloud.dify.ai/datasets/abc123...` → the ID is `abc123...`)
+3. **Import workflow**: Go to **Studio** → **Create App** → **Import DSL** → upload the `.yml` file
+4. **Update KB reference**: Open the workflow, click the **Knowledge Retrieval** node(s), and select your `patient-profiles` knowledge base (replacing the placeholder `REPLACE_WITH_YOUR_KB_ID`)
+5. **Set environment variables**: For the Patient Intake workflow, go to workflow settings and set `USDA_API_KEY` (free at https://fdc.nal.usda.gov/api-key-signup)
+6. **Choose your LLM provider**: Each LLM node defaults to `openai/gpt-4o`. Change the model in each node if you prefer Claude or another provider.
+7. **Publish** the app and copy the API key into your `.env` as `DIFY_API_KEY`
+
+---
+
 ## Prerequisites
 
 1. A Dify account (cloud at https://cloud.dify.ai or self-hosted)

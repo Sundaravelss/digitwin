@@ -1,11 +1,15 @@
+"use client";
+
 import { ExternalLink, ChevronUp, Calendar } from "lucide-react";
-import { caloriesAnalysisData } from "@/data/patientData";
+import { useMealPlan } from "@/context/MealPlanContext";
 
 const CaloriesAnalysis = () => {
-  const today = new Date().toLocaleDateString('en-US', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
+  const { totalCalories, nutrientBreakdown } = useMealPlan();
+
+  const today = new Date().toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
   });
 
   return (
@@ -17,28 +21,35 @@ const CaloriesAnalysis = () => {
           <ChevronUp className="w-4 h-4 text-white/80" />
         </div>
       </div>
-      
-      {/* Date */}
+
+      {/* Date + Total */}
       <div className="p-4 pb-2 flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2 text-foreground/70">
           <Calendar className="w-4 h-4" />
           {today}
         </div>
-        <button className="text-muted-foreground hover:text-foreground transition-colors">
-          <ExternalLink className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold text-foreground">
+            {totalCalories} kcal
+          </span>
+          <button className="text-foreground/70 hover:text-foreground transition-colors">
+            <ExternalLink className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-      
+
       {/* Nutrients */}
       <div className="px-4 pb-4 space-y-4">
-        {caloriesAnalysisData.nutrients.map((nutrient) => (
+        {nutrientBreakdown.map((nutrient) => (
           <div key={nutrient.name} className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{nutrient.name}</span>
-              <span className="font-medium text-foreground">{nutrient.value}%</span>
+              <span className="text-foreground/70">{nutrient.name}</span>
+              <span className="font-medium text-foreground">
+                {nutrient.value}%
+              </span>
             </div>
             <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
-              <div 
+              <div
                 className={`h-full ${nutrient.color} rounded-full transition-all duration-500`}
                 style={{ width: `${nutrient.value}%` }}
               />
