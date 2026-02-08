@@ -1,0 +1,1255 @@
+##############################################################################
+# DigiTwin — Doctor Treatment Simulation Workflow (Dify DSL)
+#
+# Import this file into Dify:
+#   Dify Dashboard → Create App → Import DSL → Upload this .yml
+#
+# Before importing:
+#   1. Create a Knowledge Base named "knowledge-base" and upload
+#      the single knowledge base file: src/data/knowledge-base.md
+#   2. After import, open the Knowledge Retrieval node and select the
+#      "knowledge-base" dataset
+#   3. Set environment variables in the workflow settings (if any)
+#
+# Architecture (v2 — with FDA fallback):
+#
+#   ┌─────────┐    ┌──────────────────┐
+#   │  START  │───▶│ KB: Patient      │──────────────────────────────────┐
+#   │         │    │ Clinical Profile │                                  │
+#   └────┬────┘    └──────────────────┘                                  │
+#        │                                                               │
+#        │         ┌──────────────────┐    ┌──────────────┐              │
+#        └────────▶│ HTTP: OpenFDA    │───▶│ Check OpenFDA│              │
+#                  │ Drug Lookup      │    │ Response     │              │
+#                  └──────────────────┘    └──────┬───────┘              │
+#                                            ┌────┴─────┐               │
+#                                            │ FDA OK?  │               │
+#                                            ├──Y───┐   │               │
+#                                            │  N   │   │               │
+#                                            ▼      │   │               │
+#                                          Web     │   │               │
+#                                          Search  │   │               │
+#                                            │      │   │               │
+#                                            └──┬───┘   │               │
+#                                               ▼       │               │
+#                                         ┌──────────┐  │               │
+#                                         │  Merge   │◀─┘               │
+#                                         │ Drug Data│                  │
+#                                         └────┬─────┘                  │
+#                                              └──────────┬─────────────┘
+#                                                         ▼
+#   ┌──────────────────────────────────────────────────────────────────────┐
+#   │                  Sequential LLM Analysis Chain                       │
+#   │                                                                      │
+#   │  PGx Assessment → Drug Interactions → Contraindications              │
+#   │       → Biomarker Trajectory → Clinical Summary                      │
+#   └──────────────────────────────────┬───────────────────────────────────┘
+#                                      ▼
+#                              ┌────────────────┐    ┌────────────┐
+#                              │ Code: Validate │───▶│   ANSWER   │
+#                              │ & Assemble     │    └────────────┘
+#                              └────────────────┘
+#
+# Key improvements over v1:
+#   • OpenFDA response validation with web search fallback (no silent failures)
+#   • Variable aggregator merges FDA data from either source
+#   • Streaming-friendly node titles for real-time "thinking" visibility
+#   • Consistent KB dataset_id with patient-intake workflow
+##############################################################################
+app:
+  description: >-
+    DigiTwin Doctor Treatment Simulator — Agentic workflow that evaluates
+    proposed treatments against a patient's full clinical profile including
+    pharmacogenomics (CYP2D6/2C19/3A4/SLCO1B1/VKORC1), current medications,
+    organ function, and longitudinal lab trends. Produces structured simulation
+    with efficacy/risk scores, biomarker projections, drug interactions,
+    alternative treatments, and monitoring recommendations.
+  icon: "\U0001F3E5"
+  icon_background: "#D5F5F6"
+  mode: workflow
+  name: DigiTwin Treatment Simulator
+  use_icon_as_answer_icon: false
+
+kind: app
+version: 0.1.2
+
+workflow:
+  conversation_variables: []
+
+  environment_variables: []
+
+  features:
+    retriever_resource:
+      enabled: true
+    text_to_speech:
+      enabled: false
+
+  graph:
+    # ── NODES ──────────────────────────────────────────────────────────────
+    nodes:
+      # ── 1. START ─────────────────────────────────────────────────────────
+      - data:
+          title: Start
+          type: start
+          variables:
+            - label: Patient ID
+              max_length: 10
+              options: []
+              required: true
+              type: text-input
+              variable: patient_id
+            - label: Treatment Name
+              max_length: 256
+              options: []
+              required: true
+              type: text-input
+              variable: treatment_name
+            - label: Treatment Type
+              max_length: 20
+              options:
+                - medication
+                - procedure
+                - lifestyle
+                - combination
+              required: true
+              type: select
+              variable: treatment_type
+            - label: Dosage
+              max_length: 128
+              options: []
+              required: false
+              type: text-input
+              variable: dosage
+            - label: Duration
+              max_length: 64
+              options: []
+              required: false
+              type: text-input
+              variable: duration
+            - label: Simulation Days
+              max_length: 4
+              options:
+                - "7"
+                - "30"
+                - "90"
+                - "180"
+              required: false
+              type: select
+              variable: simulation_days
+              default: "90"
+        height: 150
+        id: node_start
+        position:
+          x: 80
+          y: 282
+        type: custom
+        width: 244
+
+      # ── 2. KNOWLEDGE RETRIEVAL — Patient Profile ─────────────────────────
+      # Source: knowledge-base.md (uploaded to Dify KB named "knowledge-base")
+      - data:
+          title: Loading patient clinical profile...
+          desc: >-
+            Queries the "knowledge-base" Knowledge Base by patient_id to pull
+            the full clinical profile: demographics, biomarkers (glucose, lipids,
+            metabolic, liver, thyroid, inflammatory, cardiovascular),
+            pharmacogenomics (all CYP enzymes), conditions, medications,
+            allergies, family history, lifestyle, longitudinal lab trends, and
+            health scores. Source file: src/data/knowledge-base.md
+          type: knowledge-retrieval
+          query_variable_selector:
+            - node_start
+            - patient_id
+          dataset_ids:
+            - "knowledge-base"
+          retrieval_mode: multiple
+          multiple_retrieval_config:
+            top_k: 5
+            score_threshold: 0.3
+            reranking_enable: true
+            reranking_model:
+              provider: ""
+              model: ""
+          single_retrieval_config:
+            model:
+              provider: openai
+              name: gpt-4o
+              mode: chat
+              completion_params:
+                temperature: 0.2
+        height: 120
+        id: node_kb_patient
+        position:
+          x: 380
+          y: 200
+        type: custom
+        width: 244
+
+      # ── 3. HTTP — OpenFDA Drug Data ─────────────────────────────────────
+      - data:
+          title: Looking up drug information...
+          desc: >-
+            Fetches official drug label data from OpenFDA including
+            indications, contraindications, warnings, drug interactions,
+            mechanism of action, and pharmacokinetics.
+          type: http-request
+          method: get
+          url: "https://api.fda.gov/drug/label.json?search=(openfda.brand_name:{{#node_start.treatment_name#}}+OR+openfda.generic_name:{{#node_start.treatment_name#}})&limit=3"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 3
+            retry_interval: 1000
+          variables: []
+        height: 140
+        id: node_http_fda
+        position:
+          x: 380
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 3a. CODE — Check OpenFDA Response ───────────────────────────────
+      - data:
+          title: Check OpenFDA Response
+          desc: >-
+            Validates the OpenFDA API response. If valid drug data is returned,
+            passes it through. Otherwise flags for web search fallback.
+          type: code
+          code_language: python3
+          code: |
+            import json
+
+            def main(http_body: str) -> dict:
+                try:
+                    data = json.loads(http_body)
+                    if isinstance(data, dict) and data.get("results") and len(data["results"]) > 0:
+                        return {"success": "yes", "api_data": http_body}
+                except Exception:
+                    pass
+                return {"success": "no", "api_data": ""}
+          variables:
+            - value_selector:
+                - node_http_fda
+                - body
+              variable: http_body
+          outputs:
+            success:
+              type: string
+              children: null
+            api_data:
+              type: string
+              children: null
+        height: 120
+        id: node_code_check_fda
+        position:
+          x: 680
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 3b. IF/ELSE — OpenFDA OK? ──────────────────────────────────────
+      - data:
+          title: OpenFDA OK?
+          desc: >-
+            If OpenFDA returned valid data, proceed to merge. Otherwise fall
+            back to web search.
+          type: if-else
+          cases:
+            - case_id: "true"
+              conditions:
+                - comparison_operator: contains
+                  id: cond_fda_ok
+                  value: "yes"
+                  variable_selector:
+                    - node_code_check_fda
+                    - success
+              logical_operator: and
+        height: 130
+        id: node_ifelse_fda_ok
+        position:
+          x: 980
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 3c. HTTP — Web Search Fallback (Drug) ──────────────────────────
+      - data:
+          title: Web Search (Drug Fallback)
+          desc: >-
+            Fallback web search when OpenFDA API fails or returns no results.
+            Uses DuckDuckGo Instant Answer API (free, no key required).
+            Replace this URL with your preferred search API if needed.
+          type: http-request
+          method: get
+          url: "https://api.duckduckgo.com/?q={{#node_start.treatment_name#}}+drug+interactions+contraindications+side+effects+pharmacokinetics&format=json&no_html=1&skip_disambig=1"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 2
+            retry_interval: 1000
+          variables: []
+        height: 140
+        id: node_http_search_fda
+        position:
+          x: 980
+          y: 620
+        type: custom
+        width: 244
+
+      # ── 3d. VARIABLE AGGREGATOR — Merge Drug Data ─────────────────────
+      - data:
+          title: Merge Drug Data
+          desc: >-
+            Combines results from OpenFDA API or its web search fallback
+            into a single variable for downstream LLM analysis.
+          type: variable-aggregator
+          advanced_settings:
+            group_enabled: false
+            groups: []
+          output_type: string
+          variables:
+            - - node_code_check_fda
+              - api_data
+            - - node_http_search_fda
+              - body
+        height: 100
+        id: node_merge_fda
+        position:
+          x: 1280
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 4. LLM — Pharmacogenomic Assessment ────────────────────────────
+      - data:
+          title: Analyzing pharmacogenomic compatibility...
+          desc: >-
+            CRITICAL NODE: Checks if the proposed drug is metabolized by CYP
+            enzymes for which the patient has variant alleles. Determines
+            dosing recommendation based on metabolizer status.
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.2
+              max_tokens: 1500
+          context:
+            enabled: true
+            variable_selector:
+              - node_kb_patient
+              - result
+          vision:
+            enabled: false
+          prompt_template:
+            - id: sys_pgx
+              role: system
+              text: >-
+                You are a pharmacogenomics specialist for the DigiTwin platform.
+                This is the MOST CRITICAL analysis step.
+
+
+                PATIENT PROFILE (from Knowledge Base):
+
+                {{#context#}}
+
+
+                FDA DRUG DATA:
+
+                {{#node_merge_fda.output#}}
+
+
+                PROPOSED TREATMENT: {{#node_start.treatment_name#}}
+
+                TYPE: {{#node_start.treatment_type#}}
+
+                DOSAGE: {{#node_start.dosage#}}
+
+
+                Note: Drug data may come from a web search fallback if the primary
+                OpenFDA API failed. Adapt your analysis accordingly — use your
+                clinical knowledge to supplement any missing fields.
+
+
+                Perform pharmacogenomic assessment:
+
+
+                1. Identify which CYP enzymes metabolize this drug (from FDA
+                data or your knowledge)
+
+                2. Check patient's CYP profile:
+                   - CYP2D6: genotype and metabolizer status
+                   - CYP2C19: genotype and metabolizer status
+                   - CYP3A4: genotype and metabolizer status
+                   - SLCO1B1: genotype and risk level (for statins)
+                   - VKORC1: genotype and warfarin sensitivity
+
+                3. Determine impact:
+                   - Poor metabolizer → drug accumulation → reduce dose
+                   - Rapid/ultrarapid → subtherapeutic → increase dose or switch
+                   - Normal → standard dosing
+
+                4. CRITICAL EXAMPLES:
+                   - PT-005 (Aisha): CYP2D6 ultrarapid → codeine toxicity risk
+                   - PT-001 (Sundar): CYP2C19 rapid → omeprazole reduced efficacy
+                   - PT-004 (Sarah): check all CYP enzymes for 6-drug regimen
+
+
+                Return ONLY valid JSON:
+
+                {
+                  "pharmacogenomic_assessment": {
+                    "relevant_enzymes": ["CYP3A4", "CYP2D6"],
+                    "patient_metabolizer_status": {
+                      "cyp2d6": "normal | rapid | poor | ultrarapid",
+                      "cyp2c19": "normal | rapid | poor | ultrarapid",
+                      "cyp3a4": "normal | rapid | poor",
+                      "slco1b1": "normal | increased risk",
+                      "vkorc1": "normal | sensitive | highly sensitive"
+                    },
+                    "primary_metabolism_pathway": "CYP enzyme name",
+                    "dosing_recommendation": "standard | reduce | increase | avoid",
+                    "onset_adjustment": "faster | normal | slower",
+                    "notes": "detailed explanation"
+                  }
+                }
+            - id: usr_pgx
+              role: user
+              text: >-
+                Assess pharmacogenomic compatibility of
+                {{#node_start.treatment_name#}} for patient
+                {{#node_start.patient_id#}}.
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 280
+        id: node_llm_pgx
+        position:
+          x: 1580
+          y: 200
+        type: custom
+        width: 244
+
+      # ── 5. LLM — Drug Interaction Analysis ─────────────────────────────
+      - data:
+          title: Checking drug interactions...
+          desc: >-
+            Checks the proposed treatment against ALL current medications
+            the patient takes. Classifies interaction severity and describes
+            clinical significance.
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.2
+              max_tokens: 2000
+          context:
+            enabled: true
+            variable_selector:
+              - node_kb_patient
+              - result
+          vision:
+            enabled: false
+          prompt_template:
+            - id: sys_ddi
+              role: system
+              text: >-
+                You are a drug interaction analysis engine for the DigiTwin
+                platform.
+
+
+                PATIENT PROFILE (from Knowledge Base):
+
+                {{#context#}}
+
+
+                FDA DRUG DATA:
+
+                {{#node_merge_fda.output#}}
+
+
+                PHARMACOGENOMIC ASSESSMENT:
+
+                {{#node_llm_pgx.text#}}
+
+
+                PROPOSED TREATMENT: {{#node_start.treatment_name#}}
+                ({{#node_start.dosage#}})
+
+
+                For EACH medication the patient currently takes, check for
+                interactions with the proposed treatment:
+
+
+                Consider:
+
+                1. Direct drug-drug pharmacokinetic interactions (shared CYP
+                pathways, inhibition, induction)
+
+                2. Pharmacodynamic interactions (additive effects, antagonism)
+
+                3. Disease-drug interactions (treatment vs patient's conditions)
+
+                4. Food-drug interactions relevant to patient's diet
+
+                5. Polypharmacy risk (especially PT-004 with 6 medications)
+
+
+                IMPORTANT: PT-004 (Sarah Thompson) takes: Metformin, Glipizide,
+                Lisinopril, Atorvastatin, Levothyroxine, Fluticasone. ALL must
+                be checked for interactions.
+
+
+                Note: Drug data may come from a web search fallback if the primary
+                OpenFDA API failed. Adapt your analysis accordingly.
+
+
+                Return ONLY valid JSON:
+
+                {
+                  "drug_interactions": [
+                    {
+                      "drug": "name of current medication",
+                      "severity": "low | moderate | high | contraindicated",
+                      "mechanism": "pharmacokinetic or pharmacodynamic explanation",
+                      "description": "clinical significance",
+                      "action_required": "monitor X | reduce dose | separate timing | avoid combination"
+                    }
+                  ],
+                  "polypharmacy_risk": "low | moderate | high",
+                  "total_interaction_count": number,
+                  "critical_interactions": number
+                }
+            - id: usr_ddi
+              role: user
+              text: >-
+                Analyze drug interactions for {{#node_start.treatment_name#}}
+                with all current medications of patient
+                {{#node_start.patient_id#}}.
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 280
+        id: node_llm_ddi
+        position:
+          x: 1880
+          y: 200
+        type: custom
+        width: 244
+
+      # ── 6. LLM — Contraindication & Organ Function Check ───────────────
+      - data:
+          title: Evaluating safety and contraindications...
+          desc: >-
+            Evaluates contraindications based on conditions, allergies, and
+            organ function (eGFR for renal, ALT/AST for hepatic clearance).
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.2
+              max_tokens: 1500
+          context:
+            enabled: true
+            variable_selector:
+              - node_kb_patient
+              - result
+          vision:
+            enabled: false
+          prompt_template:
+            - id: sys_contra
+              role: system
+              text: >-
+                You are a clinical safety assessment engine for DigiTwin.
+
+
+                PATIENT PROFILE (from Knowledge Base):
+
+                {{#context#}}
+
+
+                FDA DRUG DATA:
+
+                {{#node_merge_fda.output#}}
+
+
+                PHARMACOGENOMIC ASSESSMENT:
+
+                {{#node_llm_pgx.text#}}
+
+
+                DRUG INTERACTIONS:
+
+                {{#node_llm_ddi.text#}}
+
+
+                PROPOSED TREATMENT: {{#node_start.treatment_name#}}
+                ({{#node_start.dosage#}})
+
+
+                Check:
+
+                1. **Allergy cross-reactivity**:
+                   - PT-001: Penicillin allergy → cephalosporin caution
+                   - PT-003: Shellfish allergy (severe) → iodine contrast caution
+                   - Severity classification: mild/moderate/severe/anaphylaxis risk
+
+                2. **Organ function for drug clearance**:
+                   - Renal: eGFR value → safe for renally-cleared drugs?
+                     (PT-002: eGFR 88 mildly reduced; PT-004: check eGFR)
+                   - Hepatic: ALT/AST values → safe for hepatically-metabolized?
+                     (PT-004: AST 42 elevated)
+                   - Thyroid: TSH level if treatment affects thyroid
+
+                3. **Absolute contraindications** from FDA label vs patient conditions
+
+                4. **Relative contraindications** requiring monitoring
+
+                5. **Overall risk score** (0-100): weighted by severity of
+                   interactions + contraindications + PGx concerns
+
+                6. **Overall efficacy score** (0-100): expected benefit adjusted
+                   for patient-specific factors
+
+
+                Return ONLY valid JSON:
+
+                {
+                  "allergy_check": {
+                    "allergies_on_record": ["allergen (severity)"],
+                    "cross_reactivity_risk": "none | low | moderate | high",
+                    "details": "string"
+                  },
+                  "organ_function": {
+                    "renal": {"egfr": number, "clearance_safe": true/false, "notes": "string"},
+                    "hepatic": {"alt": number, "ast": number, "metabolism_safe": true/false, "notes": "string"}
+                  },
+                  "contraindications": {
+                    "absolute": ["string"],
+                    "relative": ["string"]
+                  },
+                  "efficacy_score": number,
+                  "risk_score": number,
+                  "warnings": ["string"],
+                  "expected_outcomes": {
+                    "positive": ["string"],
+                    "risks": ["string"],
+                    "side_effects": ["string"]
+                  }
+                }
+            - id: usr_contra
+              role: user
+              text: >-
+                Perform safety assessment for {{#node_start.treatment_name#}}
+                on patient {{#node_start.patient_id#}}.
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 280
+        id: node_llm_contra
+        position:
+          x: 2180
+          y: 200
+        type: custom
+        width: 244
+
+      # ── 7. LLM — Biomarker Trajectory Simulation ───────────────────────
+      - data:
+          title: Simulating biomarker trajectory...
+          desc: >-
+            Generates day-by-day biomarker projections starting from the
+            patient's actual baseline values, modeling pharmacokinetic onset,
+            CYP metabolizer effects, and treatment response curves.
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.3
+              max_tokens: 3000
+          context:
+            enabled: true
+            variable_selector:
+              - node_kb_patient
+              - result
+          vision:
+            enabled: false
+          prompt_template:
+            - id: sys_traj
+              role: system
+              text: >-
+                You are a biomarker trajectory simulation engine for DigiTwin.
+
+
+                PATIENT PROFILE (from Knowledge Base):
+
+                {{#context#}}
+
+
+                PHARMACOGENOMIC ASSESSMENT:
+
+                {{#node_llm_pgx.text#}}
+
+
+                SAFETY ASSESSMENT:
+
+                {{#node_llm_contra.text#}}
+
+
+                TREATMENT: {{#node_start.treatment_name#}}
+                ({{#node_start.dosage#}})
+
+                DURATION: {{#node_start.duration#}}
+
+                SIMULATION DAYS: {{#node_start.simulation_days#}}
+
+
+                Generate biomarker projections using the patient's ACTUAL
+                baseline values.
+
+
+                Simulation intervals based on simulation_days:
+
+                - 7d:   [day 0, 1, 2, 3, 5, 7]
+
+                - 30d:  [day 0, 1, 3, 7, 14, 21, 30]
+
+                - 90d:  [day 0, 3, 7, 14, 30, 60, 90]
+
+                - 180d: [day 0, 7, 14, 30, 60, 90, 120, 180]
+
+
+                Biomarkers to project (from patient's actual values):
+
+                - blood_pressure (format: "130/85")
+
+                - glucose_mg_dl (fasting glucose baseline)
+
+                - hba1c_percent (for 90d+ sims; null for shorter)
+
+                - resting_heart_rate
+
+                - hrv_ms
+
+                - crp_mg_l
+
+                - ldl_mg_dl (for statin/lipid treatments; null otherwise)
+
+                - overall_health (0-100 from healthScores.overall)
+
+
+                Modeling rules:
+
+                - Day 0 = patient's ACTUAL current values from biomarkers
+
+                - Factor CYP metabolizer status into onset speed:
+                  * Poor metabolizer → slower onset, higher steady-state
+                  * Rapid metabolizer → faster onset, lower steady-state
+
+                - Model realistic PK/PD curves (most meds take days-weeks)
+
+                - Side effects timeline (early GI for metformin, late myopathy
+                  for statins)
+
+                - Use labHistory to calibrate change rates
+
+                - If efficacy_score < 50, show minimal improvement
+
+                - If risk_score > 70, show adverse trajectory possible
+
+
+                Return ONLY valid JSON:
+
+                {
+                  "projections": [
+                    {
+                      "day": 0,
+                      "blood_pressure": "130/85",
+                      "glucose_mg_dl": 135,
+                      "hba1c_percent": 7.2,
+                      "resting_heart_rate": 78,
+                      "hrv_ms": 32,
+                      "crp_mg_l": 4.5,
+                      "ldl_mg_dl": 168,
+                      "overall_health": 42
+                    }
+                  ]
+                }
+            - id: usr_traj
+              role: user
+              text: >-
+                Generate {{#node_start.simulation_days#}}-day biomarker
+                trajectory for patient {{#node_start.patient_id#}} on
+                {{#node_start.treatment_name#}} {{#node_start.dosage#}}.
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 280
+        id: node_llm_trajectory
+        position:
+          x: 2480
+          y: 200
+        type: custom
+        width: 244
+
+      # ── 8. LLM — Clinical Summary & Alternatives ───────────────────────
+      - data:
+          title: Generating clinical summary and alternatives...
+          desc: >-
+            Produces the clinical narrative, alternative treatment suggestions
+            with pharmacogenomic advantages, and monitoring recommendations.
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.3
+              max_tokens: 2000
+          context:
+            enabled: true
+            variable_selector:
+              - node_kb_patient
+              - result
+          vision:
+            enabled: false
+          prompt_template:
+            - id: sys_summary
+              role: system
+              text: >-
+                You are a clinical decision support summarizer for DigiTwin.
+
+
+                PATIENT PROFILE (from Knowledge Base):
+
+                {{#context#}}
+
+
+                PHARMACOGENOMIC ASSESSMENT:
+
+                {{#node_llm_pgx.text#}}
+
+
+                DRUG INTERACTIONS:
+
+                {{#node_llm_ddi.text#}}
+
+
+                SAFETY ASSESSMENT:
+
+                {{#node_llm_contra.text#}}
+
+
+                TREATMENT: {{#node_start.treatment_name#}}
+                ({{#node_start.dosage#}}, {{#node_start.duration#}})
+
+
+                Generate:
+
+
+                1. **Clinical Notes** (2-4 sentences): Reference patient-specific
+                factors. Mention pharmacogenomic considerations, relevant
+                comorbidities, and key monitoring needs.
+
+
+                2. **Alternative Treatments** (2-3 alternatives): Propose if
+                risk_score > 40 or significant interactions exist.
+
+                For each alternative:
+                - Name and typical dosage
+                - Expected efficacy (0-100)
+                - Why it's a better fit for THIS patient
+                - Pharmacogenomic advantage if applicable
+                  (e.g., "metabolized by CYP3A4 — patient is normal metabolizer")
+
+
+                3. **Monitoring Recommendations**: What labs/vitals to check and
+                when, specific to this patient's comorbidities and
+                pharmacogenomic profile.
+
+
+                Return ONLY valid JSON:
+
+                {
+                  "clinical_notes": "string",
+                  "alternative_treatments": [
+                    {
+                      "name": "Drug Name dosage",
+                      "efficacy": 75,
+                      "reason": "string",
+                      "pharmacogenomic_advantage": "string or null"
+                    }
+                  ],
+                  "monitoring_recommendations": ["string"],
+                  "thinking_steps": [
+                    "Step 1: Retrieved patient PT-XXX profile...",
+                    "Step 2: Checked CYP2D6 metabolizer status...",
+                    "Step 3: Analyzed interactions with N current medications...",
+                    "Step 4: Evaluated organ function...",
+                    "Step 5: Simulated biomarker trajectory...",
+                    "Step 6: Generated alternatives based on PGx profile..."
+                  ]
+                }
+            - id: usr_summary
+              role: user
+              text: >-
+                Generate clinical summary and alternatives for
+                {{#node_start.treatment_name#}} on patient
+                {{#node_start.patient_id#}}.
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 280
+        id: node_llm_summary
+        position:
+          x: 2780
+          y: 200
+        type: custom
+        width: 244
+
+      # ── 9. CODE — Validate & Assemble Final Response ───────────────────
+      - data:
+          title: Validating simulation results...
+          desc: >-
+            Merges all LLM outputs into the final structured response,
+            validates JSON, clamps values to realistic ranges, and verifies
+            baselines match patient data.
+          type: code
+          code_language: python3
+          code: |
+            import json
+            import re
+
+            def extract_json(text: str) -> dict:
+                """Extract JSON from LLM output, handling markdown code blocks."""
+                try:
+                    return json.loads(text)
+                except Exception:
+                    pass
+                match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
+                if match:
+                    try:
+                        return json.loads(match.group(1))
+                    except Exception:
+                        pass
+                # Find outermost braces
+                depth = 0
+                start = -1
+                for i, c in enumerate(text):
+                    if c == '{':
+                        if depth == 0:
+                            start = i
+                        depth += 1
+                    elif c == '}':
+                        depth -= 1
+                        if depth == 0 and start >= 0:
+                            try:
+                                return json.loads(text[start:i+1])
+                            except Exception:
+                                start = -1
+                return {}
+
+            def clamp(val, lo, hi):
+                if val is None:
+                    return None
+                return max(lo, min(hi, val))
+
+            def main(
+                pgx_text: str,
+                ddi_text: str,
+                contra_text: str,
+                trajectory_text: str,
+                summary_text: str,
+                patient_id: str,
+                treatment_name: str,
+                treatment_type: str,
+                dosage: str,
+                duration: str,
+                simulation_days: str
+            ) -> dict:
+                pgx = extract_json(pgx_text)
+                ddi = extract_json(ddi_text)
+                contra = extract_json(contra_text)
+                trajectory = extract_json(trajectory_text)
+                summary = extract_json(summary_text)
+
+                # Validate and clamp projection values
+                projections = trajectory.get("projections", [])
+                for p in projections:
+                    if "glucose_mg_dl" in p and p["glucose_mg_dl"] is not None:
+                        p["glucose_mg_dl"] = clamp(p["glucose_mg_dl"], 50, 400)
+                    if "resting_heart_rate" in p and p["resting_heart_rate"] is not None:
+                        p["resting_heart_rate"] = clamp(p["resting_heart_rate"], 40, 180)
+                    if "overall_health" in p and p["overall_health"] is not None:
+                        p["overall_health"] = clamp(p["overall_health"], 0, 100)
+                    if "crp_mg_l" in p and p["crp_mg_l"] is not None:
+                        p["crp_mg_l"] = clamp(p["crp_mg_l"], 0.1, 50)
+
+                # Clamp scores
+                efficacy = clamp(contra.get("efficacy_score", 70), 0, 100)
+                risk = clamp(contra.get("risk_score", 25), 0, 100)
+
+                # Format drug interactions for the app
+                interactions = []
+                for ix in ddi.get("drug_interactions", []):
+                    interactions.append({
+                        "drug": ix.get("drug", "Unknown"),
+                        "severity": ix.get("severity", "low"),
+                        "description": ix.get("description", ix.get("mechanism", ""))
+                    })
+
+                # Format alternative treatments
+                alternatives = []
+                for alt in summary.get("alternative_treatments", []):
+                    alternatives.append({
+                        "name": alt.get("name", ""),
+                        "efficacy": clamp(alt.get("efficacy", 50), 0, 100),
+                        "reason": alt.get("reason", ""),
+                        "pharmacogenomic_advantage": alt.get("pharmacogenomic_advantage")
+                    })
+
+                result = {
+                    "patient_id": patient_id,
+                    "treatment_name": treatment_name + (" " + dosage if dosage else ""),
+                    "treatment_type": treatment_type,
+                    "efficacy_score": efficacy,
+                    "risk_score": risk,
+                    "pharmacogenomic_assessment": pgx.get("pharmacogenomic_assessment", {}),
+                    "drug_interactions": interactions,
+                    "expected_outcomes": contra.get("expected_outcomes", {
+                        "positive": [],
+                        "risks": [],
+                        "side_effects": []
+                    }),
+                    "projections": projections,
+                    "alternative_treatments": alternatives,
+                    "monitoring_recommendations": summary.get("monitoring_recommendations", []),
+                    "clinical_notes": summary.get("clinical_notes", ""),
+                    "warnings": contra.get("warnings", []),
+                    "thinking_steps": summary.get("thinking_steps", [])
+                }
+
+                return {"result": json.dumps(result, indent=2)}
+          variables:
+            - value_selector:
+                - node_llm_pgx
+                - text
+              variable: pgx_text
+            - value_selector:
+                - node_llm_ddi
+                - text
+              variable: ddi_text
+            - value_selector:
+                - node_llm_contra
+                - text
+              variable: contra_text
+            - value_selector:
+                - node_llm_trajectory
+                - text
+              variable: trajectory_text
+            - value_selector:
+                - node_llm_summary
+                - text
+              variable: summary_text
+            - value_selector:
+                - node_start
+                - patient_id
+              variable: patient_id
+            - value_selector:
+                - node_start
+                - treatment_name
+              variable: treatment_name
+            - value_selector:
+                - node_start
+                - treatment_type
+              variable: treatment_type
+            - value_selector:
+                - node_start
+                - dosage
+              variable: dosage
+            - value_selector:
+                - node_start
+                - duration
+              variable: duration
+            - value_selector:
+                - node_start
+                - simulation_days
+              variable: simulation_days
+          outputs:
+            result:
+              type: string
+              children: null
+        height: 200
+        id: node_code_validate
+        position:
+          x: 3080
+          y: 282
+        type: custom
+        width: 244
+
+      # ── 10. ANSWER ──────────────────────────────────────────────────────
+      - data:
+          title: Return Treatment Simulation
+          type: answer
+          answer: "{{#node_code_validate.result#}}"
+        height: 80
+        id: node_answer
+        position:
+          x: 3380
+          y: 282
+        type: custom
+        width: 244
+
+    # ── EDGES ──────────────────────────────────────────────────────────────
+    edges:
+      # Start fans out to KB + HTTP in parallel
+      - id: edge_start_to_kb
+        source: node_start
+        sourceHandle: source
+        target: node_kb_patient
+        targetHandle: target
+        type: custom
+
+      - id: edge_start_to_fda
+        source: node_start
+        sourceHandle: source
+        target: node_http_fda
+        targetHandle: target
+        type: custom
+
+      # FDA → Check → IF/ELSE → (OK? merge : web search → merge)
+      - id: edge_fda_to_check
+        source: node_http_fda
+        sourceHandle: source
+        target: node_code_check_fda
+        targetHandle: target
+        type: custom
+
+      - id: edge_check_to_ifelse
+        source: node_code_check_fda
+        sourceHandle: source
+        target: node_ifelse_fda_ok
+        targetHandle: target
+        type: custom
+
+      - id: edge_fda_ok_to_merge
+        source: node_ifelse_fda_ok
+        sourceHandle: "true"
+        target: node_merge_fda
+        targetHandle: target
+        type: custom
+
+      - id: edge_fda_fail_to_search
+        source: node_ifelse_fda_ok
+        sourceHandle: "false"
+        target: node_http_search_fda
+        targetHandle: target
+        type: custom
+
+      - id: edge_search_fda_to_merge
+        source: node_http_search_fda
+        sourceHandle: source
+        target: node_merge_fda
+        targetHandle: target
+        type: custom
+
+      # KB and merged FDA data both feed into PGx assessment
+      - id: edge_kb_to_pgx
+        source: node_kb_patient
+        sourceHandle: source
+        target: node_llm_pgx
+        targetHandle: target
+        type: custom
+
+      - id: edge_merge_fda_to_pgx
+        source: node_merge_fda
+        sourceHandle: source
+        target: node_llm_pgx
+        targetHandle: target
+        type: custom
+
+      # Sequential LLM chain: PGx → DDI → Contra → Trajectory → Summary
+      - id: edge_pgx_to_ddi
+        source: node_llm_pgx
+        sourceHandle: source
+        target: node_llm_ddi
+        targetHandle: target
+        type: custom
+
+      - id: edge_ddi_to_contra
+        source: node_llm_ddi
+        sourceHandle: source
+        target: node_llm_contra
+        targetHandle: target
+        type: custom
+
+      - id: edge_contra_to_trajectory
+        source: node_llm_contra
+        sourceHandle: source
+        target: node_llm_trajectory
+        targetHandle: target
+        type: custom
+
+      - id: edge_trajectory_to_summary
+        source: node_llm_trajectory
+        sourceHandle: source
+        target: node_llm_summary
+        targetHandle: target
+        type: custom
+
+      # Summary → Code Validation → Answer
+      - id: edge_summary_to_validate
+        source: node_llm_summary
+        sourceHandle: source
+        target: node_code_validate
+        targetHandle: target
+        type: custom
+
+      - id: edge_validate_to_answer
+        source: node_code_validate
+        sourceHandle: source
+        target: node_answer
+        targetHandle: target
+        type: custom

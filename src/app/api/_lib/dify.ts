@@ -179,7 +179,60 @@ export async function difyStreamQuery(args: {
   };
 }
 
-// ── Dify Workflow API (/v1/workflows/run) ──
+// ==========================================
+// Dify File Upload API (/v1/files/upload)
+// ==========================================
+
+export type DifyUploadedFile = {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+};
+
+/**
+ * Upload a file to Dify for use in workflow runs.
+ * Returns a file object with an ID that can be passed in the `files` array.
+ */
+export async function difyFileUpload(args: {
+  file: File;
+  user: string;
+  apiKeyEnv?: string;
+}): Promise<DifyUploadedFile | null> {
+  const baseUrl = optionalEnv("DIFY_API_URL");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY") || optionalEnv("DIFY_API_KEY");
+  if (!baseUrl || !apiKey) return null;
+
+  const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/files/upload`;
+
+  const formData = new FormData();
+  formData.append("file", args.file);
+  formData.append("user", args.user);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || `Dify file upload error (${res.status})`);
+
+  const data = JSON.parse(text);
+  return {
+    id: data.id,
+    name: data.name,
+    size: data.size,
+    type: data.mime_type || data.type,
+  };
+}
+
+// ==========================================
+// Dify Workflow API (/v1/workflows/run)
+// Used for workflow-type apps (e.g., Patient Intake Analyzer)
+// ==========================================
 
 export type DifyWorkflowResponse = {
   workflowRunId: string;
@@ -192,14 +245,25 @@ export type DifyWorkflowResponse = {
   totalSteps?: number;
 };
 
+export type DifyWorkflowStreamEvent = {
+  event: string;
+  taskId?: string;
+  workflowRunId?: string;
+  data?: Record<string, unknown>;
+};
+
+/**
+ * Execute a Dify workflow in blocking mode.
+ * Uses a separate API key (DIFY_INTAKE_API_KEY) for the workflow app.
+ */
 export async function difyWorkflowRun(args: {
   inputs: Record<string, unknown>;
   user: string;
   files?: Array<{ type: string; transfer_method: string; upload_file_id: string }>;
-  apiKeyEnv?: string;
+  apiKeyEnv?: string; // env var name for the API key, defaults to DIFY_INTAKE_API_KEY
 }): Promise<DifyWorkflowResponse | null> {
   const baseUrl = optionalEnv("DIFY_API_URL");
-  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY") || optionalEnv("DIFY_API_KEY");
   if (!baseUrl || !apiKey) return null;
 
   const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/workflows/run`;
@@ -223,7 +287,10 @@ export async function difyWorkflowRun(args: {
   });
 
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Dify workflow error (${res.status})`);
+  if (!res.ok) {
+    console.warn(`Dify workflow returned ${res.status}: ${text.slice(0, 200)}`);
+    return null;
+  }
 
   const data = JSON.parse(text);
   return {
@@ -238,6 +305,10 @@ export async function difyWorkflowRun(args: {
   };
 }
 
+/**
+ * Execute a Dify workflow in streaming mode.
+ * Returns a ReadableStream that can be piped to the client.
+ */
 export async function difyWorkflowStream(args: {
   inputs: Record<string, unknown>;
   user: string;
@@ -247,7 +318,7 @@ export async function difyWorkflowStream(args: {
   response: Response;
 } | null> {
   const baseUrl = optionalEnv("DIFY_API_URL");
-  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY") || optionalEnv("DIFY_API_KEY");
   if (!baseUrl || !apiKey) return null;
 
   const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/workflows/run`;
@@ -272,6 +343,7 @@ export async function difyWorkflowStream(args: {
 
   if (!res.body) return null;
 
+  // Transform the SSE stream into a cleaner format for the client
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -286,6 +358,7 @@ export async function difyWorkflowStream(args: {
         if (line.startsWith("data: ")) {
           const jsonStr = line.slice(6).trim();
           if (!jsonStr || jsonStr === "[DONE]") continue;
+          // Forward the SSE event as-is to the client
           controller.enqueue(encoder.encode(`data: ${jsonStr}\n\n`));
         }
       }
