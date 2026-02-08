@@ -1,58 +1,380 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@layer base {
+  :root {
+    /* Health Dashboard Theme - Clean Blue */
+    --background: 220 25% 92%;
+    --foreground: 220 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 15%;
+
+    --primary: 211 96% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 96%;
+    --secondary-foreground: 220 25% 15%;
+
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 211 96% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 211 96% 52%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 211 96% 52%;
+
+    --radius: 1rem;
+
+    /* Sidebar */
+    --sidebar-background: 211 96% 52%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 211 96% 52%;
+    --sidebar-accent: 211 80% 60%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 211 80% 60%;
+    --sidebar-ring: 0 0% 100%;
+
+    /* Chart Colors */
+    --chart-blue: 211 96% 52%;
+    --chart-blue-light: 211 80% 75%;
+    --chart-orange: 25 95% 55%;
+    --chart-green: 142 76% 45%;
+    --chart-purple: 262 83% 58%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(211, 96%, 52%) 0%, hsl(211, 90%, 65%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(220, 25%, 98%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px -2px hsl(220 25% 15% / 0.08);
+    --shadow-md: 0 8px 24px -4px hsl(220 25% 15% / 0.12);
+    --shadow-lg: 0 16px 48px -8px hsl(220 25% 15% / 0.15);
+    --shadow-card-hover: 0 12px 32px -6px hsl(220 25% 15% / 0.18), 0 0 0 1px hsl(220 25% 15% / 0.03);
+    --shadow-card-active: 0 4px 12px -2px hsl(220 25% 15% / 0.1);
+    --shadow-elevated: 0 20px 60px -12px hsl(220 25% 15% / 0.2);
+    --shadow-glow-primary: 0 0 20px -5px hsl(211 96% 52% / 0.3);
+    --shadow-glow-success: 0 0 20px -5px hsl(142 76% 45% / 0.3);
+
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+  }
+
+  .dark {
+    --background: 220 25% 10%;
+    --foreground: 220 10% 95%;
+
+    --card: 220 25% 14%;
+    --card-foreground: 220 10% 95%;
+
+    --popover: 220 25% 14%;
+    --popover-foreground: 220 10% 95%;
+
+    --primary: 211 96% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 25% 18%;
+    --secondary-foreground: 220 10% 95%;
+
+    --muted: 220 25% 20%;
+    --muted-foreground: 220 10% 60%;
+
+    --accent: 211 96% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 25% 22%;
+    --input: 220 25% 22%;
+    --ring: 211 96% 55%;
+
+    --sidebar-background: 220 25% 12%;
+    --sidebar-foreground: 220 10% 95%;
+    --sidebar-primary: 211 96% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 18%;
+    --sidebar-accent-foreground: 220 10% 95%;
+    --sidebar-border: 220 25% 22%;
+    --sidebar-ring: 211 96% 55%;
+
+    --shadow-card-hover: 0 12px 32px -6px hsl(220 25% 5% / 0.4), 0 0 0 1px hsl(220 25% 30% / 0.1);
+    --shadow-glow-primary: 0 0 20px -5px hsl(211 96% 55% / 0.4);
+    --shadow-glow-success: 0 0 20px -5px hsl(142 76% 45% / 0.4);
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-border: hsl(var(--border));
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', var(--font-geist-sans), sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Glass card with frosted effect */
+  .glass-card {
+    @apply bg-card/90 backdrop-blur-sm border border-white/20 shadow-[var(--shadow-md)] rounded-2xl;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .glass-card:hover {
+    @apply shadow-[var(--shadow-card-hover)];
+    transform: translateY(-2px);
+  }
+
+  /* Health card with 3D hover lift */
+  .health-card {
+    @apply bg-card rounded-2xl shadow-[var(--shadow-sm)] border-0;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .health-card:hover {
+    @apply shadow-[var(--shadow-card-hover)];
+    transform: translateY(-2px);
+  }
+  .health-card:active {
+    @apply shadow-[var(--shadow-card-active)];
+    transform: translateY(0px);
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold tracking-tight;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section-header {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .sidebar-icon {
+    @apply w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-200;
+  }
+
+  .progress-bar {
+    @apply h-2 rounded-full bg-muted overflow-hidden;
+  }
+
+  /* Tabular numbers for stats */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Settings dialog tab styling */
+  .settings-tab {
+    @apply rounded-none px-4 py-3 bg-transparent text-muted-foreground;
+    @apply hover:text-foreground transition-colors;
+  }
+
+  /* Animation delays for typing indicator */
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  /* Stagger delay utilities */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
+
+  /* Scrollbar hide utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Animation delays for typing indicator */
-.animation-delay-200 {
-  animation-delay: 200ms;
-}
-
-.animation-delay-400 {
-  animation-delay: 400ms;
-}
-
-/* Smooth scrollbar for chat */
-.overflow-y-auto::-webkit-scrollbar {
+/* Custom scrollbar */
+::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
-
-.overflow-y-auto::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.2);
   border-radius: 3px;
 }
-
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.35);
 }
 
-/* Pulse animation for active elements */
+/* ===== ANIMATIONS ===== */
+
+/* Fade in + rise (staggerable) */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Scale in from center */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Content reveal for tab transitions */
+@keyframes content-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.animate-content-reveal {
+  animation: content-reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--secondary)) 0%,
+    hsl(var(--muted)) 50%,
+    hsl(var(--secondary)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Gentle float for 3D elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Glow pulse for live indicators */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--success) / 0.4); }
+  50% { box-shadow: 0 0 12px 4px hsl(var(--success) / 0.15); }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Primary glow pulse */
+@keyframes glow-pulse-primary {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+.animate-glow-pulse-primary {
+  animation: glow-pulse-primary 2s ease-in-out infinite;
+}
+
+/* Slow pulse (for body highlights) */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.03); }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+/* Sci-fi scan line */
+@keyframes scan-line {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.animate-scan-line {
+  animation: scan-line 4s ease-in-out infinite;
+}
+
+/* Slow spin for verification */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* Pulse ring for active elements */
 @keyframes pulse-ring {
   0% {
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
@@ -64,7 +386,21 @@ body {
     box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
   }
 }
-
 .pulse-ring {
   animation: pulse-ring 2s infinite;
+}
+
+/* Original slide up (kept for backward compat) */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }

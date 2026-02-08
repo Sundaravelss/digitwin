@@ -1,0 +1,1592 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "generatedAt": "2026-02-08T14:30:00Z",
+    "dataSource": "DigiTwin Synthetic Patient Database",
+    "weekRange": {
+      "start": "2026-02-02",
+      "end": "2026-02-08"
+    }
+  },
+  "patients": [
+    {
+      "id": "PT-001",
+      "demographics": {
+        "firstName": "Sundar",
+        "lastName": "Selvaraj",
+        "dateOfBirth": "1993-11-27",
+        "age": 32,
+        "gender": "male",
+        "ethnicity": "South Asian",
+        "bloodType": "B+",
+        "height": 175,
+        "weight": 78.5,
+        "bmi": 25.6,
+        "email": "sundar.selvaraj@email.com",
+        "phone": "+1-555-0101",
+        "address": {
+          "street": "1234 Oak Avenue",
+          "city": "San Francisco",
+          "state": "CA",
+          "zipCode": "94102",
+          "country": "USA"
+        },
+        "emergencyContact": {
+          "name": "Priya Selvaraj",
+          "relationship": "spouse",
+          "phone": "+1-555-0102"
+        },
+        "insurance": {
+          "provider": "BlueCross BlueShield",
+          "policyNumber": "BCB-2026-78543",
+          "groupNumber": "GRP-SF-1001"
+        }
+      },
+      "dashboard": {
+        "profileCard": {
+          "name": "Sundar Selvaraj",
+          "gender": "Male",
+          "weight": 78,
+          "weightUnit": "Kg",
+          "age": 32,
+          "bloodType": "B(III)",
+          "bloodRh": "Rh+"
+        },
+        "biomarkerData": [
+          { "name": "Blood Glucose", "value": 98, "unit": "mg/dL", "status": "normal" },
+          { "name": "Total Cholesterol", "value": 215, "unit": "mg/dL", "status": "elevated" },
+          { "name": "Blood Pressure", "value": "128/84", "unit": "mmHg", "status": "elevated" },
+          { "name": "Heart Rate", "value": 72, "unit": "bpm", "status": "normal" },
+          { "name": "Body Temperature", "value": 98.4, "unit": "°F", "status": "normal" },
+          { "name": "Oxygen Saturation", "value": 98, "unit": "%", "status": "normal" }
+        ],
+        "geneticInsights": [
+          { "trait": "Caffeine Metabolism", "result": "Slow Metabolizer", "risk": "medium" },
+          { "trait": "Lactose Tolerance", "result": "Reduced Tolerance", "risk": "medium" },
+          { "trait": "Type 2 Diabetes Risk", "result": "Elevated genetic risk", "risk": "high" },
+          { "trait": "Beta-Thalassemia", "result": "Carrier", "risk": "medium" }
+        ],
+        "lifestyleMetrics": [
+          { "metric": "Average Sleep", "value": "6.5 hrs", "target": "8 hrs", "progress": 81 },
+          { "metric": "Daily Steps", "value": "7,850", "target": "10,000", "progress": 79 },
+          { "metric": "Water Intake", "value": "2.2 L", "target": "2.5 L", "progress": 88 },
+          { "metric": "Exercise Minutes", "value": "26 min", "target": "45 min", "progress": 58 }
+        ],
+        "longitudinalEvents": [
+          { "date": "Feb 2026", "event": "HbA1c improved to 5.7% (was 6.0%)" },
+          { "date": "Nov 2025", "event": "Started lifestyle modification program" },
+          { "date": "Aug 2025", "event": "Genetic testing completed - Beta-thalassemia carrier identified" },
+          { "date": "Mar 2024", "event": "Prediabetes diagnosed, diet counseling initiated" }
+        ],
+        "wearables": [
+          { "name": "Apple Watch", "connected": true, "icon": "⌚", "color": "bg-gray-900" },
+          { "name": "Withings Scale", "connected": true, "icon": "⚖️", "color": "bg-teal-500" },
+          { "name": "Oura Ring", "connected": false, "icon": "💍", "color": "bg-violet-500" }
+        ],
+        "dailyActivities": [
+          { "name": "Sleep Tracker", "icon": "Moon", "color": "bg-indigo-500", "active": true },
+          { "name": "Meditation", "icon": "Brain", "color": "bg-purple-500", "active": false },
+          { "name": "Yoga", "icon": "Heart", "color": "bg-pink-500", "active": true },
+          { "name": "Walking", "icon": "Footprints", "color": "bg-green-500", "active": true },
+          { "name": "Swimming", "icon": "Waves", "color": "bg-blue-500", "active": false }
+        ],
+        "mealPlan": {
+          "2026-02-08": {
+            "breakfast": [
+              { "emoji": "🍳", "name": "Scrambled Eggs", "calories": 180 },
+              { "emoji": "🍞", "name": "Whole Wheat Toast", "calories": 80 },
+              { "emoji": "🥤", "name": "Almond Milk", "calories": 40 }
+            ],
+            "lunch": [
+              { "emoji": "🍗", "name": "Grilled Chicken", "calories": 250 },
+              { "emoji": "🥗", "name": "Quinoa Salad", "calories": 180 },
+              { "emoji": "🥒", "name": "Cucumber Raita", "calories": 60 }
+            ],
+            "dinner": [
+              { "emoji": "🐟", "name": "Baked Salmon", "calories": 280 },
+              { "emoji": "🥦", "name": "Steamed Vegetables", "calories": 80 },
+              { "emoji": "🍚", "name": "Brown Rice", "calories": 150 }
+            ],
+            "snacks": [
+              { "emoji": "🥜", "name": "Mixed Nuts", "calories": 120 },
+              { "emoji": "🍎", "name": "Apple", "calories": 80 }
+            ]
+          }
+        },
+        "caloriesAnalysis": {
+          "consumed": 2150,
+          "burned": 2420,
+          "target": 2200,
+          "protein": 28,
+          "fat": 25,
+          "carbs": 47
+        }
+      },
+      "biomarkers": {
+        "bloodPanel": {
+          "lastUpdated": "2026-02-08T09:15:00Z",
+          "glucose": {
+            "fasting": { "value": 98, "unit": "mg/dL", "normalRange": [70, 100], "status": "normal" },
+            "hba1c": { "value": 5.7, "unit": "%", "normalRange": [4.0, 5.6], "status": "borderline" },
+            "postprandial": { "value": 132, "unit": "mg/dL", "normalRange": [70, 140], "status": "normal" }
+          },
+          "lipidPanel": {
+            "totalCholesterol": { "value": 215, "unit": "mg/dL", "normalRange": [0, 200], "status": "elevated" },
+            "ldl": { "value": 138, "unit": "mg/dL", "normalRange": [0, 100], "status": "elevated" },
+            "hdl": { "value": 52, "unit": "mg/dL", "normalRange": [40, 60], "status": "normal" },
+            "triglycerides": { "value": 165, "unit": "mg/dL", "normalRange": [0, 150], "status": "elevated" },
+            "vldl": { "value": 33, "unit": "mg/dL", "normalRange": [5, 40], "status": "normal" }
+          },
+          "cbc": {
+            "wbc": { "value": 6.8, "unit": "K/uL", "normalRange": [4.5, 11.0], "status": "normal" },
+            "rbc": { "value": 5.1, "unit": "M/uL", "normalRange": [4.5, 5.5], "status": "normal" },
+            "hemoglobin": { "value": 15.2, "unit": "g/dL", "normalRange": [13.5, 17.5], "status": "normal" },
+            "hematocrit": { "value": 44.5, "unit": "%", "normalRange": [38.8, 50.0], "status": "normal" },
+            "platelets": { "value": 245, "unit": "K/uL", "normalRange": [150, 400], "status": "normal" }
+          },
+          "metabolicPanel": {
+            "sodium": { "value": 140, "unit": "mEq/L", "normalRange": [136, 145], "status": "normal" },
+            "potassium": { "value": 4.2, "unit": "mEq/L", "normalRange": [3.5, 5.0], "status": "normal" },
+            "chloride": { "value": 101, "unit": "mEq/L", "normalRange": [98, 106], "status": "normal" },
+            "bicarbonate": { "value": 24, "unit": "mEq/L", "normalRange": [22, 29], "status": "normal" },
+            "bun": { "value": 16, "unit": "mg/dL", "normalRange": [7, 20], "status": "normal" },
+            "creatinine": { "value": 1.0, "unit": "mg/dL", "normalRange": [0.7, 1.3], "status": "normal" },
+            "egfr": { "value": 98, "unit": "mL/min/1.73m2", "normalRange": [90, 120], "status": "normal" }
+          },
+          "liverFunction": {
+            "alt": { "value": 32, "unit": "U/L", "normalRange": [7, 56], "status": "normal" },
+            "ast": { "value": 28, "unit": "U/L", "normalRange": [10, 40], "status": "normal" },
+            "alp": { "value": 68, "unit": "U/L", "normalRange": [44, 147], "status": "normal" },
+            "bilirubin": { "value": 0.8, "unit": "mg/dL", "normalRange": [0.1, 1.2], "status": "normal" },
+            "albumin": { "value": 4.2, "unit": "g/dL", "normalRange": [3.4, 5.4], "status": "normal" }
+          },
+          "thyroid": {
+            "tsh": { "value": 2.1, "unit": "mIU/L", "normalRange": [0.4, 4.0], "status": "normal" },
+            "t4Free": { "value": 1.2, "unit": "ng/dL", "normalRange": [0.8, 1.8], "status": "normal" },
+            "t3": { "value": 125, "unit": "ng/dL", "normalRange": [80, 200], "status": "normal" }
+          },
+          "inflammatory": {
+            "crp": { "value": 2.8, "unit": "mg/L", "normalRange": [0, 3.0], "status": "normal" },
+            "esr": { "value": 12, "unit": "mm/hr", "normalRange": [0, 22], "status": "normal" },
+            "homocysteine": { "value": 11.5, "unit": "umol/L", "normalRange": [5, 15], "status": "normal" }
+          },
+          "vitamins": {
+            "vitaminD": { "value": 32, "unit": "ng/mL", "normalRange": [30, 100], "status": "normal" },
+            "vitaminB12": { "value": 485, "unit": "pg/mL", "normalRange": [200, 900], "status": "normal" },
+            "folate": { "value": 12.5, "unit": "ng/mL", "normalRange": [3, 17], "status": "normal" },
+            "iron": { "value": 95, "unit": "mcg/dL", "normalRange": [60, 170], "status": "normal" },
+            "ferritin": { "value": 125, "unit": "ng/mL", "normalRange": [30, 400], "status": "normal" }
+          },
+          "hormones": {
+            "testosterone": { "value": 580, "unit": "ng/dL", "normalRange": [300, 1000], "status": "normal" },
+            "cortisol": { "value": 14.5, "unit": "mcg/dL", "normalRange": [6, 23], "status": "normal" },
+            "insulin": { "value": 8.5, "unit": "uIU/mL", "normalRange": [2.6, 24.9], "status": "normal" }
+          }
+        },
+        "cardiovascular": {
+          "lastUpdated": "2026-02-08T07:30:00Z",
+          "bloodPressure": {
+            "systolic": { "value": 128, "unit": "mmHg", "normalRange": [90, 120], "status": "elevated" },
+            "diastolic": { "value": 84, "unit": "mmHg", "normalRange": [60, 80], "status": "elevated" }
+          },
+          "heartRate": {
+            "resting": { "value": 72, "unit": "bpm", "normalRange": [60, 100], "status": "normal" },
+            "hrv": { "value": 45, "unit": "ms", "normalRange": [20, 200], "status": "normal" }
+          },
+          "ecg": {
+            "rhythm": "normal sinus rhythm",
+            "prInterval": { "value": 160, "unit": "ms", "normalRange": [120, 200] },
+            "qrsWidth": { "value": 88, "unit": "ms", "normalRange": [80, 100] },
+            "qtInterval": { "value": 400, "unit": "ms", "normalRange": [350, 450] }
+          }
+        },
+        "bodyComposition": {
+          "lastUpdated": "2026-02-08T07:15:00Z",
+          "bodyFatPercentage": { "value": 24.5, "unit": "%", "normalRange": [18, 25], "status": "normal" },
+          "muscleMass": { "value": 35.2, "unit": "kg", "normalRange": [30, 45], "status": "normal" },
+          "boneDensity": { "value": 1.15, "unit": "g/cm2", "normalRange": [1.0, 1.4], "status": "normal" },
+          "visceralFat": { "value": 11, "unit": "level", "normalRange": [1, 12], "status": "borderline" },
+          "waterPercentage": { "value": 55.2, "unit": "%", "normalRange": [50, 65], "status": "normal" }
+        }
+      },
+      "genetics": {
+        "lastUpdated": "2025-08-15T10:00:00Z",
+        "ancestry": {
+          "southAsian": 92.5,
+          "centralAsian": 4.2,
+          "european": 2.1,
+          "other": 1.2
+        },
+        "pharmacogenomics": {
+          "cyp2d6": { "genotype": "*1/*2", "metabolizerStatus": "normal", "affectedDrugs": ["codeine", "tramadol", "tamoxifen"] },
+          "cyp2c19": { "genotype": "*1/*17", "metabolizerStatus": "rapid", "affectedDrugs": ["clopidogrel", "omeprazole", "escitalopram"] },
+          "cyp3a4": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["atorvastatin", "cyclosporine"] },
+          "slco1b1": { "genotype": "*1A/*1A", "riskLevel": "normal", "affectedDrugs": ["simvastatin", "atorvastatin"] },
+          "vkorc1": { "genotype": "A/G", "warfarinSensitivity": "intermediate" }
+        },
+        "diseaseRisk": {
+          "type2Diabetes": { "relativeRisk": 1.45, "absoluteRisk": 28.5, "unit": "%", "snps": ["rs7903146", "rs1801282"] },
+          "coronaryArteryDisease": { "relativeRisk": 1.22, "absoluteRisk": 18.2, "unit": "%", "snps": ["rs10757278", "rs1333049"] },
+          "hypertension": { "relativeRisk": 1.15, "absoluteRisk": 35.0, "unit": "%", "snps": ["rs699", "rs4961"] },
+          "alzheimerDisease": { "relativeRisk": 0.85, "absoluteRisk": 8.5, "unit": "%", "snps": ["rs429358"] },
+          "colorectalCancer": { "relativeRisk": 0.92, "absoluteRisk": 4.2, "unit": "%", "snps": ["rs6983267"] }
+        },
+        "traitMarkers": {
+          "lactoseIntolerance": { "status": "likely", "confidence": 0.85 },
+          "caffeineSensitivity": { "status": "slow metabolizer", "confidence": 0.92 },
+          "alcoholFlush": { "status": "unlikely", "confidence": 0.78 },
+          "sleepPattern": { "status": "intermediate chronotype", "confidence": 0.65 }
+        },
+        "carrierStatus": {
+          "betaThalassemia": { "status": "carrier", "variant": "IVS-I-5 G>C" },
+          "sickleCellAnemia": { "status": "negative" },
+          "cysticFibrosis": { "status": "negative" }
+        }
+      },
+      "lifestyle": {
+        "lastUpdated": "2026-02-08T07:00:00Z",
+        "activity": {
+          "exerciseFrequency": "3-4 times per week",
+          "primaryActivities": ["walking", "yoga", "swimming"],
+          "averageStepsDaily": 7850,
+          "activeMinutesWeekly": 185,
+          "sedentaryHoursDaily": 9.5
+        },
+        "nutrition": {
+          "dietType": "flexitarian",
+          "mealsPerDay": 3,
+          "waterIntakeLiters": 2.2,
+          "caffeineDaily": { "value": 180, "unit": "mg" },
+          "alcoholWeekly": { "value": 3, "unit": "drinks" },
+          "restrictions": ["lactose-reduced"],
+          "supplements": ["vitamin D", "omega-3", "magnesium"]
+        },
+        "sleep": {
+          "averageHours": 6.5,
+          "quality": "fair",
+          "sleepLatencyMinutes": 22,
+          "wakeUps": 2,
+          "sleepDebt": 4.5,
+          "chronotype": "intermediate"
+        },
+        "stress": {
+          "perceivedLevel": 6,
+          "workLifeBalance": 5,
+          "meditationMinutesWeekly": 45,
+          "stressors": ["work deadlines", "financial planning"]
+        },
+        "smoking": {
+          "status": "never",
+          "packYears": 0
+        },
+        "occupation": {
+          "type": "Software Engineer",
+          "hoursPerWeek": 50,
+          "workStyle": "hybrid",
+          "screenTimeHours": 10
+        }
+      },
+      "medicalHistory": {
+        "conditions": [
+          {
+            "name": "Prediabetes",
+            "icd10": "R73.03",
+            "diagnosedDate": "2024-03-15",
+            "status": "active",
+            "managedBy": "lifestyle modification"
+          },
+          {
+            "name": "Dyslipidemia",
+            "icd10": "E78.5",
+            "diagnosedDate": "2023-08-22",
+            "status": "active",
+            "managedBy": "diet and exercise"
+          },
+          {
+            "name": "Seasonal Allergies",
+            "icd10": "J30.2",
+            "diagnosedDate": "2015-04-10",
+            "status": "controlled",
+            "managedBy": "antihistamines as needed"
+          }
+        ],
+        "surgeries": [
+          {
+            "procedure": "Appendectomy",
+            "date": "2012-07-20",
+            "facility": "Stanford Medical Center",
+            "notes": "Uncomplicated, laparoscopic"
+          }
+        ],
+        "allergies": [
+          {
+            "allergen": "Penicillin",
+            "reaction": "rash",
+            "severity": "moderate"
+          },
+          {
+            "allergen": "Pollen",
+            "reaction": "rhinitis",
+            "severity": "mild"
+          }
+        ],
+        "medications": [
+          {
+            "name": "Cetirizine",
+            "dosage": "10mg",
+            "frequency": "daily as needed",
+            "prescribedFor": "allergies"
+          }
+        ],
+        "familyHistory": [
+          {
+            "condition": "Type 2 Diabetes",
+            "relationship": "father",
+            "ageAtOnset": 55
+          },
+          {
+            "condition": "Hypertension",
+            "relationship": "mother",
+            "ageAtOnset": 52
+          },
+          {
+            "condition": "Coronary Artery Disease",
+            "relationship": "paternal grandfather",
+            "ageAtOnset": 65
+          }
+        ],
+        "immunizations": [
+          { "name": "COVID-19 Booster", "date": "2025-10-15", "manufacturer": "Moderna" },
+          { "name": "Influenza", "date": "2025-09-20", "manufacturer": "Sanofi" },
+          { "name": "Tdap", "date": "2022-06-10", "manufacturer": "GSK" }
+        ]
+      },
+      "longitudinalData": {
+        "days": [
+          {
+            "dateISO": "2026-02-08",
+            "dayOfWeek": "Sunday",
+            "steps": 6245,
+            "activeCalories": 420,
+            "caloriesBurned": 2200,
+            "caloriesConsumed": 2150,
+            "sleepHours": 7.8,
+            "sleepQuality": 85,
+            "restingHeartRate": 69,
+            "hrvMs": 48,
+            "systolic": 124,
+            "diastolic": 80,
+            "glucoseMgDl": 96,
+            "weight": 78.5,
+            "stressLevel": 4,
+            "mood": "good",
+            "hydrationLiters": 2.4,
+            "activeMinutes": 40,
+            "workouts": [{ "type": "yoga", "durationMinutes": 30, "caloriesBurned": 120 }]
+          },
+          {
+            "dateISO": "2026-02-07",
+            "dayOfWeek": "Saturday",
+            "steps": 11234,
+            "activeCalories": 680,
+            "caloriesBurned": 2780,
+            "caloriesConsumed": 2400,
+            "sleepHours": 7.5,
+            "sleepQuality": 88,
+            "restingHeartRate": 68,
+            "hrvMs": 52,
+            "systolic": 122,
+            "diastolic": 78,
+            "glucoseMgDl": 94,
+            "weight": 78.4,
+            "stressLevel": 3,
+            "mood": "great",
+            "hydrationLiters": 2.8,
+            "activeMinutes": 90,
+            "workouts": [
+              { "type": "swimming", "durationMinutes": 45, "caloriesBurned": 350 },
+              { "type": "walking", "durationMinutes": 40, "caloriesBurned": 200 }
+            ]
+          },
+          {
+            "dateISO": "2026-02-06",
+            "dayOfWeek": "Friday",
+            "steps": 5678,
+            "activeCalories": 320,
+            "caloriesBurned": 2150,
+            "caloriesConsumed": 2480,
+            "sleepHours": 5.8,
+            "sleepQuality": 65,
+            "restingHeartRate": 74,
+            "hrvMs": 38,
+            "systolic": 130,
+            "diastolic": 86,
+            "glucoseMgDl": 102,
+            "weight": 78.6,
+            "stressLevel": 7,
+            "mood": "stressed",
+            "hydrationLiters": 1.8,
+            "activeMinutes": 15,
+            "workouts": []
+          },
+          {
+            "dateISO": "2026-02-05",
+            "dayOfWeek": "Thursday",
+            "steps": 7423,
+            "activeCalories": 450,
+            "caloriesBurned": 2380,
+            "caloriesConsumed": 2250,
+            "sleepHours": 6.5,
+            "sleepQuality": 75,
+            "restingHeartRate": 72,
+            "hrvMs": 44,
+            "systolic": 127,
+            "diastolic": 83,
+            "glucoseMgDl": 98,
+            "weight": 78.5,
+            "stressLevel": 6,
+            "mood": "neutral",
+            "hydrationLiters": 2.1,
+            "activeMinutes": 30,
+            "workouts": [{ "type": "walking", "durationMinutes": 25, "caloriesBurned": 140 }]
+          },
+          {
+            "dateISO": "2026-02-04",
+            "dayOfWeek": "Wednesday",
+            "steps": 9156,
+            "activeCalories": 560,
+            "caloriesBurned": 2580,
+            "caloriesConsumed": 2100,
+            "sleepHours": 7.1,
+            "sleepQuality": 82,
+            "restingHeartRate": 70,
+            "hrvMs": 50,
+            "systolic": 124,
+            "diastolic": 80,
+            "glucoseMgDl": 95,
+            "weight": 78.5,
+            "stressLevel": 5,
+            "mood": "good",
+            "hydrationLiters": 2.5,
+            "activeMinutes": 55,
+            "workouts": [
+              { "type": "yoga", "durationMinutes": 45, "caloriesBurned": 150 },
+              { "type": "walking", "durationMinutes": 20, "caloriesBurned": 100 }
+            ]
+          },
+          {
+            "dateISO": "2026-02-03",
+            "dayOfWeek": "Tuesday",
+            "steps": 6892,
+            "activeCalories": 380,
+            "caloriesBurned": 2280,
+            "caloriesConsumed": 2350,
+            "sleepHours": 6.8,
+            "sleepQuality": 78,
+            "restingHeartRate": 71,
+            "hrvMs": 46,
+            "systolic": 128,
+            "diastolic": 84,
+            "glucoseMgDl": 99,
+            "weight": 78.6,
+            "stressLevel": 6,
+            "mood": "good",
+            "hydrationLiters": 2.3,
+            "activeMinutes": 25,
+            "workouts": []
+          },
+          {
+            "dateISO": "2026-02-02",
+            "dayOfWeek": "Monday",
+            "steps": 8234,
+            "activeCalories": 490,
+            "caloriesBurned": 2450,
+            "caloriesConsumed": 2180,
+            "sleepHours": 6.2,
+            "sleepQuality": 72,
+            "restingHeartRate": 73,
+            "hrvMs": 42,
+            "systolic": 126,
+            "diastolic": 82,
+            "glucoseMgDl": 97,
+            "weight": 78.7,
+            "stressLevel": 7,
+            "mood": "neutral",
+            "hydrationLiters": 2.0,
+            "activeMinutes": 35,
+            "workouts": [{ "type": "walking", "durationMinutes": 30, "caloriesBurned": 180 }]
+          }
+        ],
+        "monthlyTrends": {
+          "2025-09": { "avgSteps": 7200, "avgSleep": 6.3, "avgWeight": 79.8, "avgBP": "130/86" },
+          "2025-10": { "avgSteps": 7450, "avgSleep": 6.4, "avgWeight": 79.5, "avgBP": "129/85" },
+          "2025-11": { "avgSteps": 7100, "avgSleep": 6.2, "avgWeight": 79.2, "avgBP": "128/84" },
+          "2025-12": { "avgSteps": 6800, "avgSleep": 6.5, "avgWeight": 79.8, "avgBP": "130/86" },
+          "2026-01": { "avgSteps": 7650, "avgSleep": 6.6, "avgWeight": 78.9, "avgBP": "127/83" },
+          "2026-02": { "avgSteps": 7838, "avgSleep": 6.8, "avgWeight": 78.5, "avgBP": "126/82" }
+        },
+        "labHistory": [
+          { "date": "2026-02-08", "hba1c": 5.7, "ldl": 138, "hdl": 52, "triglycerides": 165, "fastingGlucose": 98 },
+          { "date": "2025-11-15", "hba1c": 5.8, "ldl": 145, "hdl": 48, "triglycerides": 178, "fastingGlucose": 102 },
+          { "date": "2025-08-10", "hba1c": 5.9, "ldl": 152, "hdl": 45, "triglycerides": 185, "fastingGlucose": 105 },
+          { "date": "2025-05-05", "hba1c": 6.0, "ldl": 158, "hdl": 44, "triglycerides": 192, "fastingGlucose": 108 }
+        ]
+      },
+      "realTimeMetrics": {
+        "timestamp": "2026-02-08T14:30:00Z",
+        "heartRate": 74,
+        "spo2": 98,
+        "respiratoryRate": 15,
+        "skinTemperature": 36.4,
+        "stressIndex": 42
+      },
+      "healthScores": {
+        "lastUpdated": "2026-02-08T14:30:00Z",
+        "overall": 76,
+        "cardiovascular": 72,
+        "metabolic": 68,
+        "fitness": 74,
+        "sleep": 65,
+        "nutrition": 78,
+        "mentalWellness": 70
+      }
+    },
+    {
+      "id": "PT-002",
+      "demographics": {
+        "firstName": "Maria",
+        "lastName": "Rodriguez",
+        "dateOfBirth": "1978-11-22",
+        "age": 47,
+        "gender": "female",
+        "ethnicity": "Hispanic/Latino",
+        "bloodType": "O+",
+        "height": 162,
+        "weight": 68.2,
+        "bmi": 26.0,
+        "email": "maria.rodriguez@email.com",
+        "phone": "+1-555-0203",
+        "address": {
+          "street": "789 Maple Street",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zipCode": "90012",
+          "country": "USA"
+        },
+        "insurance": {
+          "provider": "Kaiser Permanente",
+          "policyNumber": "KP-2026-34521",
+          "groupNumber": "GRP-LA-2002"
+        }
+      },
+      "dashboard": {
+        "profileCard": {
+          "name": "Maria Rodriguez",
+          "gender": "Female",
+          "weight": 68,
+          "weightUnit": "Kg",
+          "age": 47,
+          "bloodType": "O(I)",
+          "bloodRh": "Rh+"
+        },
+        "biomarkerData": [
+          { "name": "Blood Glucose", "value": 118, "unit": "mg/dL", "status": "elevated" },
+          { "name": "Total Cholesterol", "value": 198, "unit": "mg/dL", "status": "normal" },
+          { "name": "Blood Pressure", "value": "138/88", "unit": "mmHg", "status": "stage 1 hypertension" },
+          { "name": "Heart Rate", "value": 78, "unit": "bpm", "status": "normal" },
+          { "name": "Body Temperature", "value": 98.6, "unit": "°F", "status": "normal" },
+          { "name": "Oxygen Saturation", "value": 97, "unit": "%", "status": "normal" }
+        ],
+        "geneticInsights": [
+          { "trait": "Type 2 Diabetes Risk", "result": "High genetic risk", "risk": "high" },
+          { "trait": "Osteoporosis Risk", "result": "Elevated risk", "risk": "medium" },
+          { "trait": "Caffeine Metabolism", "result": "Normal Metabolizer", "risk": "low" },
+          { "trait": "Drug Metabolism (CYP2D6)", "result": "Intermediate metabolizer", "risk": "medium" }
+        ],
+        "lifestyleMetrics": [
+          { "metric": "Average Sleep", "value": "7.2 hrs", "target": "8 hrs", "progress": 90 },
+          { "metric": "Daily Steps", "value": "6,200", "target": "8,000", "progress": 78 },
+          { "metric": "Water Intake", "value": "1.8 L", "target": "2.0 L", "progress": 90 },
+          { "metric": "Exercise Minutes", "value": "18 min", "target": "30 min", "progress": 60 }
+        ],
+        "longitudinalEvents": [
+          { "date": "Feb 2026", "event": "HbA1c improved to 6.4% (was 6.8%)" },
+          { "date": "Jan 2026", "event": "Endocrinology consultation - medication adjusted" },
+          { "date": "Sep 2024", "event": "Osteopenia diagnosed - started calcium supplements" },
+          { "date": "Jun 2022", "event": "Type 2 Diabetes diagnosed" }
+        ],
+        "wearables": [
+          { "name": "Fitbit Sense", "connected": true, "icon": "📱", "color": "bg-teal-500" },
+          { "name": "Dexcom G7", "connected": true, "icon": "📊", "color": "bg-blue-600" }
+        ],
+        "dailyActivities": [
+          { "name": "Sleep Tracker", "icon": "Moon", "color": "bg-indigo-500", "active": true },
+          { "name": "Walking", "icon": "Footprints", "color": "bg-green-500", "active": true },
+          { "name": "Dancing", "icon": "Music", "color": "bg-pink-500", "active": false },
+          { "name": "Gardening", "icon": "Leaf", "color": "bg-emerald-500", "active": true }
+        ],
+        "mealPlan": {
+          "2026-02-08": {
+            "breakfast": [
+              { "emoji": "🥣", "name": "Steel Cut Oatmeal", "calories": 150 },
+              { "emoji": "🫐", "name": "Blueberries", "calories": 40 },
+              { "emoji": "🥛", "name": "Low-fat Milk", "calories": 80 }
+            ],
+            "lunch": [
+              { "emoji": "🥗", "name": "Mediterranean Salad", "calories": 200 },
+              { "emoji": "🐔", "name": "Grilled Chicken", "calories": 180 },
+              { "emoji": "🫒", "name": "Olive Oil Dressing", "calories": 60 }
+            ],
+            "dinner": [
+              { "emoji": "🐟", "name": "Grilled Tilapia", "calories": 200 },
+              { "emoji": "🥬", "name": "Sauteed Spinach", "calories": 50 },
+              { "emoji": "🍠", "name": "Sweet Potato", "calories": 120 }
+            ],
+            "snacks": [
+              { "emoji": "🥒", "name": "Cucumber Slices", "calories": 15 },
+              { "emoji": "🧀", "name": "String Cheese", "calories": 80 }
+            ]
+          }
+        },
+        "caloriesAnalysis": {
+          "consumed": 1850,
+          "burned": 2100,
+          "target": 1800,
+          "protein": 32,
+          "fat": 28,
+          "carbs": 40
+        }
+      },
+      "biomarkers": {
+        "bloodPanel": {
+          "lastUpdated": "2026-02-07T11:30:00Z",
+          "glucose": {
+            "fasting": { "value": 118, "unit": "mg/dL", "normalRange": [70, 100], "status": "elevated" },
+            "hba1c": { "value": 6.4, "unit": "%", "normalRange": [4.0, 5.6], "status": "diabetic" },
+            "postprandial": { "value": 168, "unit": "mg/dL", "normalRange": [70, 140], "status": "elevated" }
+          },
+          "lipidPanel": {
+            "totalCholesterol": { "value": 198, "unit": "mg/dL", "normalRange": [0, 200], "status": "normal" },
+            "ldl": { "value": 118, "unit": "mg/dL", "normalRange": [0, 100], "status": "elevated" },
+            "hdl": { "value": 62, "unit": "mg/dL", "normalRange": [50, 60], "status": "optimal" },
+            "triglycerides": { "value": 142, "unit": "mg/dL", "normalRange": [0, 150], "status": "normal" }
+          },
+          "cbc": {
+            "wbc": { "value": 5.8, "unit": "K/uL", "normalRange": [4.5, 11.0], "status": "normal" },
+            "rbc": { "value": 4.5, "unit": "M/uL", "normalRange": [4.0, 5.0], "status": "normal" },
+            "hemoglobin": { "value": 13.2, "unit": "g/dL", "normalRange": [12.0, 16.0], "status": "normal" },
+            "platelets": { "value": 268, "unit": "K/uL", "normalRange": [150, 400], "status": "normal" }
+          },
+          "metabolicPanel": {
+            "sodium": { "value": 139, "unit": "mEq/L", "normalRange": [136, 145], "status": "normal" },
+            "potassium": { "value": 4.5, "unit": "mEq/L", "normalRange": [3.5, 5.0], "status": "normal" },
+            "bun": { "value": 18, "unit": "mg/dL", "normalRange": [7, 20], "status": "normal" },
+            "creatinine": { "value": 1.1, "unit": "mg/dL", "normalRange": [0.6, 1.1], "status": "borderline" },
+            "egfr": { "value": 88, "unit": "mL/min/1.73m2", "normalRange": [90, 120], "status": "mildly reduced" }
+          },
+          "thyroid": {
+            "tsh": { "value": 3.8, "unit": "mIU/L", "normalRange": [0.4, 4.0], "status": "normal" }
+          },
+          "liverFunction": {
+            "alt": { "value": 24, "unit": "U/L", "normalRange": [7, 56], "status": "normal" },
+            "ast": { "value": 22, "unit": "U/L", "normalRange": [10, 40], "status": "normal" }
+          },
+          "inflammatory": {
+            "crp": { "value": 3.5, "unit": "mg/L", "normalRange": [0, 3.0], "status": "slightly elevated" }
+          },
+          "vitamins": {
+            "vitaminD": { "value": 35, "unit": "ng/mL", "normalRange": [30, 100], "status": "normal" }
+          }
+        },
+        "cardiovascular": {
+          "lastUpdated": "2026-02-06T09:00:00Z",
+          "bloodPressure": {
+            "systolic": { "value": 138, "unit": "mmHg", "normalRange": [90, 120], "status": "stage 1 hypertension" },
+            "diastolic": { "value": 88, "unit": "mmHg", "normalRange": [60, 80], "status": "elevated" }
+          },
+          "heartRate": {
+            "resting": { "value": 78, "unit": "bpm", "normalRange": [60, 100], "status": "normal" },
+            "hrv": { "value": 35, "unit": "ms", "normalRange": [20, 200], "status": "normal" }
+          }
+        },
+        "bodyComposition": {
+          "lastUpdated": "2026-02-05T07:30:00Z",
+          "bodyFatPercentage": { "value": 32.5, "unit": "%", "normalRange": [21, 33], "status": "normal" },
+          "boneDensity": { "value": 0.95, "unit": "g/cm2", "normalRange": [1.0, 1.4], "status": "low" }
+        }
+      },
+      "genetics": {
+        "lastUpdated": "2024-06-20T10:00:00Z",
+        "ancestry": {
+          "southernEuropean": 45.2,
+          "nativeAmerican": 38.5,
+          "african": 12.1,
+          "other": 4.2
+        },
+        "diseaseRisk": {
+          "type2Diabetes": { "relativeRisk": 1.65, "absoluteRisk": 32.5, "unit": "%" },
+          "osteoporosis": { "relativeRisk": 1.35, "absoluteRisk": 22.5, "unit": "%" }
+        },
+        "pharmacogenomics": {
+          "cyp2d6": { "genotype": "*1/*41", "metabolizerStatus": "intermediate", "affectedDrugs": ["codeine", "tramadol", "tamoxifen", "metoprolol"] },
+          "cyp2c19": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["clopidogrel", "omeprazole", "escitalopram"] },
+          "cyp3a4": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["atorvastatin", "amlodipine", "cyclosporine"] },
+          "slco1b1": { "genotype": "*1A/*5", "riskLevel": "intermediate", "affectedDrugs": ["simvastatin", "atorvastatin", "rosuvastatin"] },
+          "vkorc1": { "genotype": "G/G", "warfarinSensitivity": "normal" }
+        },
+        "traitMarkers": {
+          "lactoseIntolerance": { "status": "unlikely", "confidence": 0.72 },
+          "caffeineSensitivity": { "status": "normal metabolizer", "confidence": 0.85 }
+        },
+        "carrierStatus": {
+          "sickleCellAnemia": { "status": "negative" },
+          "cysticFibrosis": { "status": "negative" }
+        }
+      },
+      "lifestyle": {
+        "lastUpdated": "2026-02-08T06:30:00Z",
+        "activity": {
+          "exerciseFrequency": "2-3 times per week",
+          "primaryActivities": ["walking", "dancing", "gardening"],
+          "averageStepsDaily": 6200,
+          "activeMinutesWeekly": 125,
+          "sedentaryHoursDaily": 8
+        },
+        "nutrition": {
+          "dietType": "Mediterranean-influenced",
+          "mealsPerDay": 3,
+          "waterIntakeLiters": 1.8,
+          "restrictions": ["low sodium", "diabetic-friendly"],
+          "supplements": ["calcium", "vitamin D", "omega-3", "metformin"]
+        },
+        "sleep": {
+          "averageHours": 7.2,
+          "quality": "good",
+          "chronotype": "morning"
+        },
+        "smoking": {
+          "status": "former",
+          "quitDate": "2018-01-01",
+          "packYears": 8
+        }
+      },
+      "medicalHistory": {
+        "conditions": [
+          { "name": "Type 2 Diabetes Mellitus", "icd10": "E11.9", "diagnosedDate": "2022-06-15", "status": "active", "managedBy": "metformin + lifestyle" },
+          { "name": "Hypertension", "icd10": "I10", "diagnosedDate": "2021-03-10", "status": "active", "managedBy": "lisinopril" },
+          { "name": "Osteopenia", "icd10": "M85.80", "diagnosedDate": "2024-09-20", "status": "active", "managedBy": "calcium + vitamin D supplementation" }
+        ],
+        "medications": [
+          { "name": "Metformin", "dosage": "1000mg", "frequency": "twice daily", "prescribedFor": "diabetes" },
+          { "name": "Lisinopril", "dosage": "10mg", "frequency": "once daily", "prescribedFor": "hypertension" }
+        ],
+        "allergies": [
+          { "allergen": "Sulfa drugs", "reaction": "rash", "severity": "moderate" },
+          { "allergen": "Ibuprofen", "reaction": "GI upset", "severity": "mild" }
+        ],
+        "familyHistory": [
+          { "condition": "Type 2 Diabetes", "relationship": "mother", "ageAtOnset": 48 },
+          { "condition": "Type 2 Diabetes", "relationship": "maternal grandmother", "ageAtOnset": 52 }
+        ]
+      },
+      "longitudinalData": {
+        "days": [
+          { "dateISO": "2026-02-08", "steps": 4520, "activeCalories": 280, "sleepHours": 7.5, "restingHeartRate": 78, "hrvMs": 34, "systolic": 136, "diastolic": 86, "glucoseMgDl": 118, "weight": 68.2 },
+          { "dateISO": "2026-02-07", "steps": 8234, "activeCalories": 420, "sleepHours": 7.8, "restingHeartRate": 76, "hrvMs": 38, "systolic": 132, "diastolic": 84, "glucoseMgDl": 108, "weight": 68.1 },
+          { "dateISO": "2026-02-06", "steps": 6890, "activeCalories": 350, "sleepHours": 7.3, "restingHeartRate": 77, "hrvMs": 36, "systolic": 138, "diastolic": 88, "glucoseMgDl": 115, "weight": 68.2 },
+          { "dateISO": "2026-02-05", "steps": 5456, "activeCalories": 290, "sleepHours": 6.8, "restingHeartRate": 79, "hrvMs": 32, "systolic": 140, "diastolic": 90, "glucoseMgDl": 128, "weight": 68.3 },
+          { "dateISO": "2026-02-04", "steps": 7120, "activeCalories": 380, "sleepHours": 7.5, "restingHeartRate": 77, "hrvMs": 35, "systolic": 135, "diastolic": 85, "glucoseMgDl": 112, "weight": 68.2 },
+          { "dateISO": "2026-02-03", "steps": 6234, "activeCalories": 320, "sleepHours": 7.2, "restingHeartRate": 78, "hrvMs": 34, "systolic": 138, "diastolic": 87, "glucoseMgDl": 118, "weight": 68.3 },
+          { "dateISO": "2026-02-02", "steps": 5890, "activeCalories": 300, "sleepHours": 7.0, "restingHeartRate": 79, "hrvMs": 33, "systolic": 140, "diastolic": 88, "glucoseMgDl": 125, "weight": 68.4 }
+        ],
+        "labHistory": [
+          { "date": "2026-02-07", "hba1c": 6.4, "fastingGlucose": 118 },
+          { "date": "2025-11-10", "hba1c": 6.6, "fastingGlucose": 125 },
+          { "date": "2025-08-05", "hba1c": 6.8, "fastingGlucose": 132 }
+        ]
+      },
+      "healthScores": {
+        "lastUpdated": "2026-02-08T14:30:00Z",
+        "overall": 68,
+        "cardiovascular": 62,
+        "metabolic": 58,
+        "fitness": 65,
+        "sleep": 78,
+        "nutrition": 72,
+        "mentalWellness": 75
+      }
+    },
+    {
+      "id": "PT-003",
+      "demographics": {
+        "firstName": "James",
+        "lastName": "Chen",
+        "dateOfBirth": "1992-03-08",
+        "age": 33,
+        "gender": "male",
+        "ethnicity": "East Asian",
+        "bloodType": "A+",
+        "height": 178,
+        "weight": 72.5,
+        "bmi": 22.9,
+        "email": "james.chen@email.com",
+        "phone": "+1-555-0305",
+        "address": {
+          "street": "456 Pine Lane",
+          "city": "Seattle",
+          "state": "WA",
+          "zipCode": "98101",
+          "country": "USA"
+        },
+        "insurance": {
+          "provider": "Aetna",
+          "policyNumber": "AET-2026-67890",
+          "groupNumber": "GRP-SEA-3003"
+        }
+      },
+      "dashboard": {
+        "profileCard": {
+          "name": "James Chen",
+          "gender": "Male",
+          "weight": 72,
+          "weightUnit": "Kg",
+          "age": 33,
+          "bloodType": "A(II)",
+          "bloodRh": "Rh+"
+        },
+        "biomarkerData": [
+          { "name": "Blood Glucose", "value": 88, "unit": "mg/dL", "status": "optimal" },
+          { "name": "Total Cholesterol", "value": 175, "unit": "mg/dL", "status": "optimal" },
+          { "name": "Blood Pressure", "value": "118/76", "unit": "mmHg", "status": "optimal" },
+          { "name": "Heart Rate", "value": 62, "unit": "bpm", "status": "athletic" },
+          { "name": "Body Temperature", "value": 98.4, "unit": "°F", "status": "normal" },
+          { "name": "Oxygen Saturation", "value": 99, "unit": "%", "status": "excellent" }
+        ],
+        "geneticInsights": [
+          { "trait": "Alcohol Flush Reaction", "result": "Likely (ALDH2 variant)", "risk": "medium" },
+          { "trait": "Lactose Tolerance", "result": "Likely Intolerant", "risk": "low" },
+          { "trait": "Caffeine Metabolism", "result": "Fast Metabolizer", "risk": "low" },
+          { "trait": "Athletic Performance", "result": "Enhanced endurance", "risk": "low" }
+        ],
+        "lifestyleMetrics": [
+          { "metric": "Average Sleep", "value": "7.5 hrs", "target": "8 hrs", "progress": 94 },
+          { "metric": "Daily Steps", "value": "12,500", "target": "10,000", "progress": 100 },
+          { "metric": "Water Intake", "value": "3.2 L", "target": "3.0 L", "progress": 100 },
+          { "metric": "Exercise Minutes", "value": "60 min", "target": "45 min", "progress": 100 }
+        ],
+        "longitudinalEvents": [
+          { "date": "Feb 2026", "event": "VO2 max improved to 48 mL/kg/min" },
+          { "date": "Feb 2025", "event": "Vitamin D supplementation started" },
+          { "date": "Jan 2025", "event": "Completed marathon - 3:42:15" },
+          { "date": "Aug 2024", "event": "First comprehensive health screening - excellent results" }
+        ],
+        "wearables": [
+          { "name": "Garmin Fenix 8", "connected": true, "icon": "⌚", "color": "bg-blue-600" },
+          { "name": "Whoop 4.0", "connected": true, "icon": "💪", "color": "bg-green-600" },
+          { "name": "Oura Ring", "connected": true, "icon": "💍", "color": "bg-violet-500" }
+        ],
+        "dailyActivities": [
+          { "name": "Sleep Tracker", "icon": "Moon", "color": "bg-indigo-500", "active": true },
+          { "name": "Running", "icon": "Footprints", "color": "bg-orange-500", "active": true },
+          { "name": "Weight Training", "icon": "Dumbbell", "color": "bg-gray-500", "active": true },
+          { "name": "Basketball", "icon": "Circle", "color": "bg-amber-500", "active": true },
+          { "name": "Hiking", "icon": "Mountain", "color": "bg-green-600", "active": false }
+        ],
+        "mealPlan": {
+          "2026-02-08": {
+            "breakfast": [
+              { "emoji": "🥚", "name": "Egg White Omelette", "calories": 150 },
+              { "emoji": "🍌", "name": "Banana", "calories": 90 },
+              { "emoji": "🥤", "name": "Protein Shake", "calories": 180 }
+            ],
+            "lunch": [
+              { "emoji": "🍗", "name": "Grilled Chicken Breast", "calories": 280 },
+              { "emoji": "🍚", "name": "Brown Rice", "calories": 150 },
+              { "emoji": "🥦", "name": "Steamed Broccoli", "calories": 50 }
+            ],
+            "dinner": [
+              { "emoji": "🥩", "name": "Lean Steak", "calories": 320 },
+              { "emoji": "🥔", "name": "Baked Potato", "calories": 160 },
+              { "emoji": "🥗", "name": "Mixed Greens", "calories": 40 }
+            ],
+            "snacks": [
+              { "emoji": "🥜", "name": "Almonds", "calories": 160 },
+              { "emoji": "🍎", "name": "Apple", "calories": 80 },
+              { "emoji": "🧀", "name": "Cottage Cheese", "calories": 120 }
+            ]
+          }
+        },
+        "caloriesAnalysis": {
+          "consumed": 2780,
+          "burned": 3200,
+          "target": 2800,
+          "protein": 35,
+          "fat": 25,
+          "carbs": 40
+        }
+      },
+      "biomarkers": {
+        "bloodPanel": {
+          "lastUpdated": "2026-02-05T10:00:00Z",
+          "glucose": {
+            "fasting": { "value": 88, "unit": "mg/dL", "normalRange": [70, 100], "status": "optimal" },
+            "hba1c": { "value": 5.2, "unit": "%", "normalRange": [4.0, 5.6], "status": "optimal" }
+          },
+          "lipidPanel": {
+            "totalCholesterol": { "value": 175, "unit": "mg/dL", "normalRange": [0, 200], "status": "optimal" },
+            "ldl": { "value": 95, "unit": "mg/dL", "normalRange": [0, 100], "status": "optimal" },
+            "hdl": { "value": 58, "unit": "mg/dL", "normalRange": [40, 60], "status": "good" },
+            "triglycerides": { "value": 110, "unit": "mg/dL", "normalRange": [0, 150], "status": "optimal" }
+          },
+          "vitamins": {
+            "vitaminD": { "value": 28, "unit": "ng/mL", "normalRange": [30, 100], "status": "insufficient" }
+          },
+          "metabolicPanel": {
+            "creatinine": { "value": 0.9, "unit": "mg/dL", "normalRange": [0.7, 1.3], "status": "normal" },
+            "egfr": { "value": 105, "unit": "mL/min/1.73m2", "normalRange": [90, 120], "status": "normal" },
+            "bun": { "value": 14, "unit": "mg/dL", "normalRange": [7, 20], "status": "normal" }
+          },
+          "liverFunction": {
+            "alt": { "value": 22, "unit": "U/L", "normalRange": [7, 56], "status": "normal" },
+            "ast": { "value": 20, "unit": "U/L", "normalRange": [10, 40], "status": "normal" }
+          },
+          "inflammatory": {
+            "crp": { "value": 0.8, "unit": "mg/L", "normalRange": [0, 3.0], "status": "optimal" }
+          }
+        },
+        "cardiovascular": {
+          "bloodPressure": {
+            "systolic": { "value": 118, "unit": "mmHg", "status": "optimal" },
+            "diastolic": { "value": 76, "unit": "mmHg", "status": "optimal" }
+          },
+          "heartRate": {
+            "resting": { "value": 62, "unit": "bpm", "status": "athletic" },
+            "hrv": { "value": 65, "unit": "ms", "status": "excellent" },
+            "vo2Max": { "value": 48, "unit": "mL/kg/min", "status": "excellent" }
+          }
+        },
+        "bodyComposition": {
+          "bodyFatPercentage": { "value": 16.5, "unit": "%", "status": "athletic" },
+          "muscleMass": { "value": 38.5, "unit": "kg", "status": "above average" }
+        }
+      },
+      "genetics": {
+        "ancestry": {
+          "eastAsian": 95.2,
+          "southeastAsian": 3.5,
+          "other": 1.3
+        },
+        "traitMarkers": {
+          "alcoholFlush": { "status": "likely", "confidence": 0.92 },
+          "lactoseIntolerance": { "status": "likely", "confidence": 0.88 },
+          "caffeineSensitivity": { "status": "fast metabolizer", "confidence": 0.90 }
+        },
+        "pharmacogenomics": {
+          "cyp2d6": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["codeine", "tramadol", "tamoxifen"] },
+          "cyp2c19": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["clopidogrel", "omeprazole"] },
+          "cyp3a4": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["atorvastatin", "cyclosporine"] },
+          "slco1b1": { "genotype": "*1A/*1A", "riskLevel": "normal", "affectedDrugs": ["simvastatin", "atorvastatin"] },
+          "vkorc1": { "genotype": "G/G", "warfarinSensitivity": "normal" }
+        },
+        "diseaseRisk": {
+          "type2Diabetes": { "relativeRisk": 0.82, "absoluteRisk": 8.5, "unit": "%" },
+          "coronaryArteryDisease": { "relativeRisk": 0.90, "absoluteRisk": 10.2, "unit": "%" }
+        },
+        "carrierStatus": {
+          "sickleCellAnemia": { "status": "negative" },
+          "cysticFibrosis": { "status": "negative" }
+        }
+      },
+      "lifestyle": {
+        "activity": {
+          "exerciseFrequency": "5-6 times per week",
+          "primaryActivities": ["running", "weight training", "basketball", "hiking"],
+          "averageStepsDaily": 12500,
+          "activeMinutesWeekly": 420
+        },
+        "nutrition": {
+          "dietType": "high protein",
+          "mealsPerDay": 4,
+          "waterIntakeLiters": 3.2,
+          "restrictions": ["lactose-free"],
+          "supplements": ["whey protein", "creatine", "vitamin D", "fish oil"]
+        },
+        "sleep": {
+          "averageHours": 7.5,
+          "quality": "excellent"
+        },
+        "smoking": { "status": "never" }
+      },
+      "medicalHistory": {
+        "conditions": [
+          { "name": "Vitamin D Deficiency", "icd10": "E55.9", "diagnosedDate": "2025-02-15", "status": "improving", "managedBy": "supplementation" }
+        ],
+        "allergies": [
+          { "allergen": "Shellfish", "reaction": "anaphylaxis", "severity": "severe" }
+        ],
+        "medications": [
+          { "name": "Vitamin D3", "dosage": "2000 IU", "frequency": "daily", "prescribedFor": "vitamin D deficiency" }
+        ],
+        "familyHistory": [
+          { "condition": "Gastric Cancer", "relationship": "paternal grandfather", "ageAtOnset": 72 }
+        ]
+      },
+      "longitudinalData": {
+        "days": [
+          { "dateISO": "2026-02-08", "steps": 10540, "activeCalories": 680, "sleepHours": 7.8, "restingHeartRate": 61, "hrvMs": 68, "systolic": 116, "diastolic": 74, "glucoseMgDl": 86, "weight": 72.5 },
+          { "dateISO": "2026-02-07", "steps": 15230, "activeCalories": 920, "sleepHours": 8.0, "restingHeartRate": 59, "hrvMs": 72, "systolic": 114, "diastolic": 72, "glucoseMgDl": 84, "weight": 72.3 },
+          { "dateISO": "2026-02-06", "steps": 12680, "activeCalories": 780, "sleepHours": 7.6, "restingHeartRate": 62, "hrvMs": 66, "systolic": 118, "diastolic": 76, "glucoseMgDl": 88, "weight": 72.4 },
+          { "dateISO": "2026-02-05", "steps": 8920, "activeCalories": 520, "sleepHours": 7.0, "restingHeartRate": 64, "hrvMs": 62, "systolic": 120, "diastolic": 78, "glucoseMgDl": 90, "weight": 72.5 },
+          { "dateISO": "2026-02-04", "steps": 14230, "activeCalories": 880, "sleepHours": 7.5, "restingHeartRate": 60, "hrvMs": 70, "systolic": 115, "diastolic": 74, "glucoseMgDl": 85, "weight": 72.4 },
+          { "dateISO": "2026-02-03", "steps": 11890, "activeCalories": 720, "sleepHours": 7.8, "restingHeartRate": 61, "hrvMs": 68, "systolic": 117, "diastolic": 75, "glucoseMgDl": 87, "weight": 72.5 },
+          { "dateISO": "2026-02-02", "steps": 13450, "activeCalories": 820, "sleepHours": 7.2, "restingHeartRate": 62, "hrvMs": 65, "systolic": 118, "diastolic": 76, "glucoseMgDl": 88, "weight": 72.6 }
+        ]
+      },
+      "healthScores": {
+        "lastUpdated": "2026-02-08T14:30:00Z",
+        "overall": 92,
+        "cardiovascular": 95,
+        "metabolic": 90,
+        "fitness": 96,
+        "sleep": 88,
+        "nutrition": 85,
+        "mentalWellness": 88
+      }
+    },
+    {
+      "id": "PT-004",
+      "demographics": {
+        "firstName": "Sarah",
+        "lastName": "Thompson",
+        "dateOfBirth": "1968-09-30",
+        "age": 57,
+        "gender": "female",
+        "ethnicity": "Caucasian",
+        "bloodType": "AB-",
+        "height": 165,
+        "weight": 82.5,
+        "bmi": 30.3,
+        "email": "sarah.thompson@email.com",
+        "phone": "+1-555-0407",
+        "address": {
+          "street": "321 Elm Drive",
+          "city": "Boston",
+          "state": "MA",
+          "zipCode": "02101",
+          "country": "USA"
+        },
+        "insurance": {
+          "provider": "United Healthcare",
+          "policyNumber": "UHC-2026-11223",
+          "groupNumber": "GRP-BOS-4004"
+        }
+      },
+      "dashboard": {
+        "profileCard": {
+          "name": "Sarah Thompson",
+          "gender": "Female",
+          "weight": 82,
+          "weightUnit": "Kg",
+          "age": 57,
+          "bloodType": "AB(IV)",
+          "bloodRh": "Rh-"
+        },
+        "biomarkerData": [
+          { "name": "Blood Glucose", "value": 135, "unit": "mg/dL", "status": "high" },
+          { "name": "Total Cholesterol", "value": 242, "unit": "mg/dL", "status": "high" },
+          { "name": "Blood Pressure", "value": "148/94", "unit": "mmHg", "status": "stage 2 hypertension" },
+          { "name": "Heart Rate", "value": 82, "unit": "bpm", "status": "normal" },
+          { "name": "Body Temperature", "value": 98.8, "unit": "°F", "status": "normal" },
+          { "name": "Oxygen Saturation", "value": 94, "unit": "%", "status": "low normal" }
+        ],
+        "geneticInsights": [
+          { "trait": "Type 2 Diabetes Risk", "result": "Very High genetic risk", "risk": "high" },
+          { "trait": "Cardiovascular Risk", "result": "Elevated risk", "risk": "high" },
+          { "trait": "Hypothyroidism Risk", "result": "Elevated risk", "risk": "medium" },
+          { "trait": "Nicotine Dependence", "result": "High genetic predisposition", "risk": "high" }
+        ],
+        "lifestyleMetrics": [
+          { "metric": "Average Sleep", "value": "5.5 hrs", "target": "7 hrs", "progress": 79 },
+          { "metric": "Daily Steps", "value": "4,200", "target": "7,500", "progress": 56 },
+          { "metric": "Water Intake", "value": "1.2 L", "target": "2.0 L", "progress": 60 },
+          { "metric": "Exercise Minutes", "value": "11 min", "target": "30 min", "progress": 37 }
+        ],
+        "longitudinalEvents": [
+          { "date": "Dec 2025", "event": "ER visit - chest pain evaluation (cardiac workup negative)" },
+          { "date": "Sep 2021", "event": "Sleep apnea diagnosed - CPAP prescribed" },
+          { "date": "Apr 2018", "event": "Type 2 Diabetes diagnosed" },
+          { "date": "Aug 2015", "event": "Hypertension diagnosed" }
+        ],
+        "wearables": [
+          { "name": "Apple Watch", "connected": false, "icon": "⌚", "color": "bg-gray-900" },
+          { "name": "CPAP Machine", "connected": true, "icon": "😴", "color": "bg-blue-500" }
+        ],
+        "dailyActivities": [
+          { "name": "Sleep Tracker", "icon": "Moon", "color": "bg-indigo-500", "active": false },
+          { "name": "Walking", "icon": "Footprints", "color": "bg-green-500", "active": false },
+          { "name": "Medication", "icon": "Pill", "color": "bg-red-500", "active": true }
+        ],
+        "mealPlan": {
+          "2026-02-08": {
+            "breakfast": [
+              { "emoji": "☕", "name": "Coffee with cream", "calories": 80 },
+              { "emoji": "🥐", "name": "Croissant", "calories": 280 }
+            ],
+            "lunch": [
+              { "emoji": "🥪", "name": "Deli Sandwich", "calories": 520 },
+              { "emoji": "🥤", "name": "Soda", "calories": 180 },
+              { "emoji": "🍟", "name": "French Fries", "calories": 320 }
+            ],
+            "dinner": [
+              { "emoji": "🍝", "name": "Pasta Alfredo", "calories": 680 },
+              { "emoji": "🥖", "name": "Garlic Bread", "calories": 200 },
+              { "emoji": "🍷", "name": "Wine", "calories": 125 }
+            ],
+            "snacks": [
+              { "emoji": "🍪", "name": "Cookies", "calories": 280 },
+              { "emoji": "🍫", "name": "Chocolate", "calories": 210 }
+            ]
+          }
+        },
+        "caloriesAnalysis": {
+          "consumed": 2875,
+          "burned": 1850,
+          "target": 1800,
+          "protein": 18,
+          "fat": 38,
+          "carbs": 44
+        }
+      },
+      "biomarkers": {
+        "bloodPanel": {
+          "lastUpdated": "2026-02-06T14:00:00Z",
+          "glucose": {
+            "fasting": { "value": 135, "unit": "mg/dL", "normalRange": [70, 100], "status": "high" },
+            "hba1c": { "value": 7.2, "unit": "%", "normalRange": [4.0, 5.6], "status": "poorly controlled" }
+          },
+          "lipidPanel": {
+            "totalCholesterol": { "value": 242, "unit": "mg/dL", "normalRange": [0, 200], "status": "high" },
+            "ldl": { "value": 162, "unit": "mg/dL", "normalRange": [0, 100], "status": "high" },
+            "hdl": { "value": 42, "unit": "mg/dL", "normalRange": [50, 60], "status": "low" },
+            "triglycerides": { "value": 195, "unit": "mg/dL", "normalRange": [0, 150], "status": "elevated" }
+          },
+          "liverFunction": {
+            "ast": { "value": 42, "unit": "U/L", "normalRange": [10, 40], "status": "slightly elevated" }
+          },
+          "inflammatory": {
+            "crp": { "value": 4.8, "unit": "mg/L", "normalRange": [0, 3.0], "status": "elevated" }
+          },
+          "metabolicPanel": {
+            "creatinine": { "value": 1.2, "unit": "mg/dL", "normalRange": [0.6, 1.1], "status": "slightly elevated" },
+            "egfr": { "value": 72, "unit": "mL/min/1.73m2", "normalRange": [90, 120], "status": "mildly reduced" },
+            "bun": { "value": 22, "unit": "mg/dL", "normalRange": [7, 20], "status": "slightly elevated" },
+            "potassium": { "value": 4.8, "unit": "mEq/L", "normalRange": [3.5, 5.0], "status": "normal" }
+          },
+          "thyroid": {
+            "tsh": { "value": 5.2, "unit": "mIU/L", "normalRange": [0.4, 4.0], "status": "elevated" }
+          }
+        },
+        "cardiovascular": {
+          "bloodPressure": {
+            "systolic": { "value": 148, "unit": "mmHg", "status": "stage 2 hypertension" },
+            "diastolic": { "value": 94, "unit": "mmHg", "status": "stage 2 hypertension" }
+          },
+          "heartRate": {
+            "resting": { "value": 82, "unit": "bpm", "status": "normal" }
+          }
+        },
+        "bodyComposition": {
+          "bodyFatPercentage": { "value": 38.5, "unit": "%", "status": "high" },
+          "visceralFat": { "value": 14, "unit": "level", "status": "high" }
+        }
+      },
+      "genetics": {
+        "ancestry": {
+          "northernEuropean": 68.5,
+          "westernEuropean": 22.8,
+          "other": 8.7
+        },
+        "pharmacogenomics": {
+          "cyp2d6": { "genotype": "*1/*4", "metabolizerStatus": "intermediate", "affectedDrugs": ["codeine", "tramadol", "metoprolol"] },
+          "cyp2c19": { "genotype": "*1/*2", "metabolizerStatus": "intermediate", "affectedDrugs": ["clopidogrel", "omeprazole", "escitalopram"] },
+          "cyp3a4": { "genotype": "*1/*22", "metabolizerStatus": "intermediate", "affectedDrugs": ["atorvastatin", "amlodipine", "cyclosporine"] },
+          "slco1b1": { "genotype": "*1A/*5", "riskLevel": "intermediate", "affectedDrugs": ["simvastatin", "atorvastatin"] },
+          "vkorc1": { "genotype": "A/A", "warfarinSensitivity": "high" }
+        },
+        "diseaseRisk": {
+          "type2Diabetes": { "relativeRisk": 1.85, "absoluteRisk": 45.5, "unit": "%" },
+          "coronaryArteryDisease": { "relativeRisk": 1.55, "absoluteRisk": 28.5, "unit": "%" },
+          "hypothyroidism": { "relativeRisk": 1.42, "absoluteRisk": 18.5, "unit": "%" }
+        },
+        "traitMarkers": {
+          "lactoseIntolerance": { "status": "unlikely", "confidence": 0.82 },
+          "caffeineSensitivity": { "status": "normal metabolizer", "confidence": 0.78 },
+          "nicotineDependence": { "status": "high predisposition", "confidence": 0.88 }
+        },
+        "carrierStatus": {
+          "sickleCellAnemia": { "status": "negative" },
+          "cysticFibrosis": { "status": "negative" }
+        }
+      },
+      "lifestyle": {
+        "activity": {
+          "exerciseFrequency": "1-2 times per week",
+          "primaryActivities": ["walking"],
+          "averageStepsDaily": 4200,
+          "activeMinutesWeekly": 75,
+          "sedentaryHoursDaily": 11
+        },
+        "nutrition": {
+          "dietType": "standard American",
+          "mealsPerDay": 3,
+          "waterIntakeLiters": 1.2
+        },
+        "sleep": {
+          "averageHours": 5.5,
+          "quality": "poor",
+          "sleepApnea": true,
+          "cpapCompliance": 45
+        },
+        "smoking": {
+          "status": "current",
+          "cigarettesPerDay": 10,
+          "packYears": 25
+        }
+      },
+      "medicalHistory": {
+        "conditions": [
+          { "name": "Type 2 Diabetes Mellitus", "icd10": "E11.9", "diagnosedDate": "2018-04-20", "status": "poorly controlled" },
+          { "name": "Hypertension", "icd10": "I10", "diagnosedDate": "2015-08-15", "status": "uncontrolled" },
+          { "name": "Obesity", "icd10": "E66.9", "diagnosedDate": "2016-01-10", "status": "active" },
+          { "name": "Hypothyroidism", "icd10": "E03.9", "diagnosedDate": "2020-03-25", "status": "undertreated" },
+          { "name": "Obstructive Sleep Apnea", "icd10": "G47.33", "diagnosedDate": "2021-09-10", "status": "active" }
+        ],
+        "medications": [
+          { "name": "Metformin", "dosage": "1000mg", "frequency": "twice daily" },
+          { "name": "Glipizide", "dosage": "5mg", "frequency": "once daily" },
+          { "name": "Amlodipine", "dosage": "10mg", "frequency": "once daily" },
+          { "name": "Lisinopril", "dosage": "20mg", "frequency": "once daily" },
+          { "name": "Levothyroxine", "dosage": "75mcg", "frequency": "once daily" },
+          { "name": "Atorvastatin", "dosage": "40mg", "frequency": "once daily" }
+        ],
+        "allergies": [
+          { "allergen": "ACE inhibitor cough", "reaction": "persistent dry cough", "severity": "moderate" },
+          { "allergen": "Aspirin", "reaction": "GI bleeding", "severity": "moderate" }
+        ],
+        "familyHistory": [
+          { "condition": "Type 2 Diabetes", "relationship": "father", "ageAtOnset": 50 },
+          { "condition": "Heart Attack", "relationship": "father", "ageAtOnset": 62 },
+          { "condition": "Stroke", "relationship": "mother", "ageAtOnset": 70 }
+        ]
+      },
+      "longitudinalData": {
+        "days": [
+          { "dateISO": "2026-02-08", "steps": 3450, "activeCalories": 180, "sleepHours": 5.2, "restingHeartRate": 84, "hrvMs": 22, "systolic": 152, "diastolic": 96, "glucoseMgDl": 155, "weight": 82.5 },
+          { "dateISO": "2026-02-07", "steps": 5120, "activeCalories": 260, "sleepHours": 5.5, "restingHeartRate": 82, "hrvMs": 24, "systolic": 148, "diastolic": 94, "glucoseMgDl": 148, "weight": 82.4 },
+          { "dateISO": "2026-02-06", "steps": 4890, "activeCalories": 240, "sleepHours": 5.8, "restingHeartRate": 81, "hrvMs": 25, "systolic": 146, "diastolic": 92, "glucoseMgDl": 135, "weight": 82.5 },
+          { "dateISO": "2026-02-05", "steps": 3780, "activeCalories": 190, "sleepHours": 6.0, "restingHeartRate": 80, "hrvMs": 26, "systolic": 144, "diastolic": 90, "glucoseMgDl": 142, "weight": 82.5 },
+          { "dateISO": "2026-02-04", "steps": 4560, "activeCalories": 220, "sleepHours": 5.0, "restingHeartRate": 83, "hrvMs": 21, "systolic": 150, "diastolic": 95, "glucoseMgDl": 152, "weight": 82.6 },
+          { "dateISO": "2026-02-03", "steps": 4120, "activeCalories": 210, "sleepHours": 5.5, "restingHeartRate": 82, "hrvMs": 23, "systolic": 148, "diastolic": 93, "glucoseMgDl": 138, "weight": 82.7 },
+          { "dateISO": "2026-02-02", "steps": 3890, "activeCalories": 195, "sleepHours": 5.2, "restingHeartRate": 84, "hrvMs": 20, "systolic": 150, "diastolic": 94, "glucoseMgDl": 145, "weight": 82.8 }
+        ],
+        "labHistory": [
+          { "date": "2026-02-06", "hba1c": 7.2, "ldl": 162, "fastingGlucose": 135 },
+          { "date": "2025-11-05", "hba1c": 7.0, "ldl": 155, "fastingGlucose": 128 },
+          { "date": "2025-08-10", "hba1c": 6.8, "ldl": 148, "fastingGlucose": 122 }
+        ]
+      },
+      "healthScores": {
+        "lastUpdated": "2026-02-08T14:30:00Z",
+        "overall": 42,
+        "cardiovascular": 35,
+        "metabolic": 32,
+        "fitness": 38,
+        "sleep": 28,
+        "nutrition": 45,
+        "mentalWellness": 40
+      }
+    },
+    {
+      "id": "PT-005",
+      "demographics": {
+        "firstName": "Aisha",
+        "lastName": "Okonkwo",
+        "dateOfBirth": "1995-01-17",
+        "age": 31,
+        "gender": "female",
+        "ethnicity": "African/Nigerian",
+        "bloodType": "O-",
+        "height": 170,
+        "weight": 62.0,
+        "bmi": 21.5,
+        "email": "aisha.okonkwo@email.com",
+        "phone": "+1-555-0509",
+        "address": {
+          "street": "567 Willow Court",
+          "city": "Austin",
+          "state": "TX",
+          "zipCode": "78701",
+          "country": "USA"
+        },
+        "insurance": {
+          "provider": "Cigna",
+          "policyNumber": "CIG-2026-44556",
+          "groupNumber": "GRP-AUS-5005"
+        }
+      },
+      "dashboard": {
+        "profileCard": {
+          "name": "Aisha Okonkwo",
+          "gender": "Female",
+          "weight": 62,
+          "weightUnit": "Kg",
+          "age": 31,
+          "bloodType": "O(I)",
+          "bloodRh": "Rh-"
+        },
+        "biomarkerData": [
+          { "name": "Blood Glucose", "value": 82, "unit": "mg/dL", "status": "optimal" },
+          { "name": "Total Cholesterol", "value": 168, "unit": "mg/dL", "status": "optimal" },
+          { "name": "Blood Pressure", "value": "112/72", "unit": "mmHg", "status": "optimal" },
+          { "name": "Heart Rate", "value": 58, "unit": "bpm", "status": "athletic" },
+          { "name": "Body Temperature", "value": 98.2, "unit": "°F", "status": "normal" },
+          { "name": "Oxygen Saturation", "value": 99, "unit": "%", "status": "excellent" }
+        ],
+        "geneticInsights": [
+          { "trait": "Sickle Cell Trait", "result": "Carrier (HbAS)", "risk": "medium" },
+          { "trait": "Athletic Performance", "result": "Elite endurance potential", "risk": "low" },
+          { "trait": "Drug Metabolism (CYP2D6)", "result": "Ultrarapid metabolizer", "risk": "medium" },
+          { "trait": "Vitamin D Processing", "result": "Efficient", "risk": "low" }
+        ],
+        "lifestyleMetrics": [
+          { "metric": "Average Sleep", "value": "8.0 hrs", "target": "8 hrs", "progress": 100 },
+          { "metric": "Daily Steps", "value": "14,500", "target": "10,000", "progress": 100 },
+          { "metric": "Water Intake", "value": "3.5 L", "target": "3.0 L", "progress": 100 },
+          { "metric": "Exercise Minutes", "value": "69 min", "target": "45 min", "progress": 100 }
+        ],
+        "longitudinalEvents": [
+          { "date": "Feb 2026", "event": "VO2 max reached 52 mL/kg/min - elite level" },
+          { "date": "Sep 2025", "event": "Completed Ironman 70.3 triathlon" },
+          { "date": "Aug 2025", "event": "Annual checkup - all markers optimal" },
+          { "date": "Jan 1995", "event": "Sickle cell trait identified at birth - asymptomatic" }
+        ],
+        "wearables": [
+          { "name": "Garmin Forerunner", "connected": true, "icon": "⌚", "color": "bg-blue-600" },
+          { "name": "Whoop 4.0", "connected": true, "icon": "💪", "color": "bg-green-600" },
+          { "name": "Oura Ring", "connected": true, "icon": "💍", "color": "bg-violet-500" },
+          { "name": "Wahoo Bike", "connected": true, "icon": "🚴", "color": "bg-orange-500" }
+        ],
+        "dailyActivities": [
+          { "name": "Sleep Tracker", "icon": "Moon", "color": "bg-indigo-500", "active": true },
+          { "name": "Running", "icon": "Footprints", "color": "bg-orange-500", "active": true },
+          { "name": "CrossFit", "icon": "Dumbbell", "color": "bg-red-500", "active": true },
+          { "name": "Cycling", "icon": "Bike", "color": "bg-blue-500", "active": true },
+          { "name": "Meditation", "icon": "Brain", "color": "bg-purple-500", "active": true },
+          { "name": "Rock Climbing", "icon": "Mountain", "color": "bg-amber-500", "active": false }
+        ],
+        "mealPlan": {
+          "2026-02-08": {
+            "breakfast": [
+              { "emoji": "🥣", "name": "Overnight Oats", "calories": 280 },
+              { "emoji": "🫐", "name": "Mixed Berries", "calories": 60 },
+              { "emoji": "🥜", "name": "Almond Butter", "calories": 90 }
+            ],
+            "lunch": [
+              { "emoji": "🥗", "name": "Power Salad", "calories": 320 },
+              { "emoji": "🍗", "name": "Grilled Chicken", "calories": 200 },
+              { "emoji": "🥑", "name": "Avocado", "calories": 160 }
+            ],
+            "dinner": [
+              { "emoji": "🐟", "name": "Grilled Salmon", "calories": 350 },
+              { "emoji": "🍠", "name": "Roasted Sweet Potato", "calories": 180 },
+              { "emoji": "🥬", "name": "Kale Salad", "calories": 80 }
+            ],
+            "snacks": [
+              { "emoji": "🍌", "name": "Banana", "calories": 90 },
+              { "emoji": "🥤", "name": "Protein Smoothie", "calories": 250 },
+              { "emoji": "🥕", "name": "Carrots & Hummus", "calories": 120 }
+            ]
+          }
+        },
+        "caloriesAnalysis": {
+          "consumed": 2680,
+          "burned": 3100,
+          "target": 2700,
+          "protein": 30,
+          "fat": 28,
+          "carbs": 42
+        }
+      },
+      "biomarkers": {
+        "bloodPanel": {
+          "lastUpdated": "2026-02-04T09:30:00Z",
+          "glucose": {
+            "fasting": { "value": 82, "unit": "mg/dL", "status": "optimal" },
+            "hba1c": { "value": 5.0, "unit": "%", "status": "optimal" }
+          },
+          "lipidPanel": {
+            "totalCholesterol": { "value": 168, "unit": "mg/dL", "status": "optimal" },
+            "ldl": { "value": 88, "unit": "mg/dL", "status": "optimal" },
+            "hdl": { "value": 68, "unit": "mg/dL", "status": "excellent" },
+            "triglycerides": { "value": 75, "unit": "mg/dL", "status": "optimal" }
+          },
+          "cbc": {
+            "wbc": { "value": 5.8, "unit": "K/uL", "normalRange": [4.5, 11.0], "status": "normal" },
+            "rbc": { "value": 4.6, "unit": "M/uL", "normalRange": [4.0, 5.0], "status": "normal" },
+            "hemoglobin": { "value": 13.8, "unit": "g/dL", "normalRange": [12.0, 16.0], "status": "normal" },
+            "platelets": { "value": 255, "unit": "K/uL", "normalRange": [150, 400], "status": "normal" }
+          },
+          "metabolicPanel": {
+            "creatinine": { "value": 0.8, "unit": "mg/dL", "normalRange": [0.6, 1.1], "status": "normal" },
+            "egfr": { "value": 112, "unit": "mL/min/1.73m2", "normalRange": [90, 120], "status": "normal" },
+            "bun": { "value": 12, "unit": "mg/dL", "normalRange": [7, 20], "status": "normal" }
+          },
+          "liverFunction": {
+            "alt": { "value": 18, "unit": "U/L", "normalRange": [7, 56], "status": "normal" },
+            "ast": { "value": 20, "unit": "U/L", "normalRange": [10, 40], "status": "normal" }
+          },
+          "inflammatory": {
+            "crp": { "value": 0.5, "unit": "mg/L", "normalRange": [0, 3.0], "status": "optimal" }
+          },
+          "vitamins": {
+            "vitaminD": { "value": 42, "unit": "ng/mL", "normalRange": [30, 100], "status": "normal" },
+            "iron": { "value": 85, "unit": "mcg/dL", "normalRange": [60, 170], "status": "normal" },
+            "vitaminB12": { "value": 380, "unit": "pg/mL", "normalRange": [200, 900], "status": "normal" }
+          }
+        },
+        "cardiovascular": {
+          "bloodPressure": {
+            "systolic": { "value": 112, "unit": "mmHg", "status": "optimal" },
+            "diastolic": { "value": 72, "unit": "mmHg", "status": "optimal" }
+          },
+          "heartRate": {
+            "resting": { "value": 58, "unit": "bpm", "status": "athletic" },
+            "hrv": { "value": 72, "unit": "ms", "status": "excellent" },
+            "vo2Max": { "value": 52, "unit": "mL/kg/min", "status": "elite" }
+          }
+        },
+        "bodyComposition": {
+          "bodyFatPercentage": { "value": 22.0, "unit": "%", "status": "fit" },
+          "muscleMass": { "value": 28.5, "unit": "kg", "status": "athletic" }
+        }
+      },
+      "genetics": {
+        "ancestry": {
+          "westAfrican": 82.5,
+          "centralAfrican": 12.3,
+          "european": 4.2,
+          "other": 1.0
+        },
+        "carrierStatus": {
+          "sickleCellAnemia": { "status": "carrier", "variant": "HbS" },
+          "cysticFibrosis": { "status": "negative" }
+        },
+        "pharmacogenomics": {
+          "cyp2d6": { "genotype": "*1/*17", "metabolizerStatus": "ultrarapid", "affectedDrugs": ["codeine", "tramadol", "tamoxifen", "metoprolol"] },
+          "cyp2c19": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["clopidogrel", "omeprazole"] },
+          "cyp3a4": { "genotype": "*1/*1", "metabolizerStatus": "normal", "affectedDrugs": ["atorvastatin", "cyclosporine"] },
+          "slco1b1": { "genotype": "*1A/*1A", "riskLevel": "normal", "affectedDrugs": ["simvastatin", "atorvastatin"] },
+          "vkorc1": { "genotype": "G/G", "warfarinSensitivity": "normal" }
+        },
+        "diseaseRisk": {
+          "type2Diabetes": { "relativeRisk": 0.75, "absoluteRisk": 6.8, "unit": "%" },
+          "sickleCellCrisis": { "relativeRisk": 1.10, "absoluteRisk": 2.5, "unit": "%" },
+          "hypertension": { "relativeRisk": 1.25, "absoluteRisk": 22.0, "unit": "%" }
+        },
+        "traitMarkers": {
+          "lactoseIntolerance": { "status": "likely", "confidence": 0.78 },
+          "caffeineSensitivity": { "status": "fast metabolizer", "confidence": 0.85 }
+        }
+      },
+      "lifestyle": {
+        "activity": {
+          "exerciseFrequency": "6 times per week",
+          "primaryActivities": ["running", "CrossFit", "cycling", "rock climbing"],
+          "averageStepsDaily": 14500,
+          "activeMinutesWeekly": 480
+        },
+        "nutrition": {
+          "dietType": "plant-forward",
+          "mealsPerDay": 4,
+          "waterIntakeLiters": 3.5,
+          "supplements": ["B12", "iron", "vitamin D"]
+        },
+        "sleep": {
+          "averageHours": 8.0,
+          "quality": "excellent"
+        },
+        "stress": {
+          "perceivedLevel": 3,
+          "meditationMinutesWeekly": 120
+        },
+        "smoking": { "status": "never" }
+      },
+      "medicalHistory": {
+        "conditions": [
+          { "name": "Sickle Cell Trait", "icd10": "D57.3", "diagnosedDate": "1995-01-20", "status": "stable", "notes": "Asymptomatic carrier" }
+        ],
+        "allergies": [
+          { "allergen": "Latex", "reaction": "contact dermatitis", "severity": "mild" }
+        ],
+        "medications": [],
+        "familyHistory": [
+          { "condition": "Sickle Cell Disease", "relationship": "brother", "ageAtOnset": 0 }
+        ]
+      },
+      "longitudinalData": {
+        "days": [
+          { "dateISO": "2026-02-08", "steps": 9870, "activeCalories": 720, "sleepHours": 8.0, "restingHeartRate": 57, "hrvMs": 74, "systolic": 110, "diastolic": 70, "glucoseMgDl": 80, "weight": 62.0 },
+          { "dateISO": "2026-02-07", "steps": 18920, "activeCalories": 1280, "sleepHours": 8.5, "restingHeartRate": 55, "hrvMs": 78, "systolic": 108, "diastolic": 68, "glucoseMgDl": 78, "weight": 61.9 },
+          { "dateISO": "2026-02-06", "steps": 14890, "activeCalories": 980, "sleepHours": 8.0, "restingHeartRate": 58, "hrvMs": 72, "systolic": 112, "diastolic": 72, "glucoseMgDl": 82, "weight": 61.8 },
+          { "dateISO": "2026-02-05", "steps": 12340, "activeCalories": 820, "sleepHours": 7.5, "restingHeartRate": 59, "hrvMs": 70, "systolic": 114, "diastolic": 74, "glucoseMgDl": 84, "weight": 62.0 },
+          { "dateISO": "2026-02-04", "steps": 16780, "activeCalories": 1120, "sleepHours": 8.0, "restingHeartRate": 56, "hrvMs": 76, "systolic": 110, "diastolic": 70, "glucoseMgDl": 80, "weight": 61.9 },
+          { "dateISO": "2026-02-03", "steps": 13450, "activeCalories": 880, "sleepHours": 8.2, "restingHeartRate": 57, "hrvMs": 74, "systolic": 111, "diastolic": 71, "glucoseMgDl": 81, "weight": 62.0 },
+          { "dateISO": "2026-02-02", "steps": 15230, "activeCalories": 1020, "sleepHours": 7.8, "restingHeartRate": 58, "hrvMs": 72, "systolic": 112, "diastolic": 72, "glucoseMgDl": 82, "weight": 62.1 }
+        ]
+      },
+      "healthScores": {
+        "lastUpdated": "2026-02-08T14:30:00Z",
+        "overall": 96,
+        "cardiovascular": 98,
+        "metabolic": 95,
+        "fitness": 98,
+        "sleep": 95,
+        "nutrition": 92,
+        "mentalWellness": 94
+      }
+    }
+  ],
+  "realWorldData": {
+    "environmentalFactors": {
+      "2026-02-02": { "airQualityIndex": 42, "pollenCount": "low", "uvIndex": 2, "humidity": 65, "temperature": { "high": 58, "low": 42, "unit": "F" } },
+      "2026-02-03": { "airQualityIndex": 38, "pollenCount": "low", "uvIndex": 2, "humidity": 70, "temperature": { "high": 55, "low": 40, "unit": "F" } },
+      "2026-02-04": { "airQualityIndex": 52, "pollenCount": "low", "uvIndex": 3, "humidity": 55, "temperature": { "high": 62, "low": 45, "unit": "F" } },
+      "2026-02-05": { "airQualityIndex": 48, "pollenCount": "low", "uvIndex": 2, "humidity": 68, "temperature": { "high": 58, "low": 44, "unit": "F" } },
+      "2026-02-06": { "airQualityIndex": 35, "pollenCount": "low", "uvIndex": 3, "humidity": 60, "temperature": { "high": 64, "low": 48, "unit": "F" } },
+      "2026-02-07": { "airQualityIndex": 28, "pollenCount": "low", "uvIndex": 4, "humidity": 52, "temperature": { "high": 68, "low": 50, "unit": "F" } },
+      "2026-02-08": { "airQualityIndex": 32, "pollenCount": "low", "uvIndex": 3, "humidity": 58, "temperature": { "high": 65, "low": 48, "unit": "F" } }
+    },
+    "healthcareClaims": {
+      "PT-001": [
+        { "date": "2026-02-08", "type": "lab", "description": "Comprehensive Metabolic Panel", "cost": 125.00, "covered": 100.00 },
+        { "date": "2025-11-15", "type": "office visit", "description": "Annual Physical", "cost": 250.00, "covered": 250.00 }
+      ],
+      "PT-002": [
+        { "date": "2026-02-07", "type": "lab", "description": "HbA1c + Lipid Panel", "cost": 150.00, "covered": 120.00 },
+        { "date": "2026-01-15", "type": "specialist", "description": "Endocrinology Consultation", "cost": 350.00, "covered": 280.00 }
+      ],
+      "PT-004": [
+        { "date": "2026-02-06", "type": "lab", "description": "Comprehensive Labs", "cost": 280.00, "covered": 224.00 },
+        { "date": "2026-01-20", "type": "DME", "description": "CPAP Supplies", "cost": 180.00, "covered": 144.00 },
+        { "date": "2025-12-10", "type": "ER", "description": "Chest Pain Evaluation", "cost": 2500.00, "covered": 2000.00 }
+      ]
+    },
+    "socialDeterminants": {
+      "PT-001": { "foodAccess": "high", "transportationAccess": "high", "socialSupport": "strong", "educationLevel": "masters", "incomeLevel": "upper-middle" },
+      "PT-002": { "foodAccess": "high", "transportationAccess": "moderate", "socialSupport": "strong", "educationLevel": "bachelors", "incomeLevel": "middle" },
+      "PT-003": { "foodAccess": "high", "transportationAccess": "high", "socialSupport": "moderate", "educationLevel": "bachelors", "incomeLevel": "upper-middle" },
+      "PT-004": { "foodAccess": "moderate", "transportationAccess": "moderate", "socialSupport": "limited", "educationLevel": "associate", "incomeLevel": "lower-middle" },
+      "PT-005": { "foodAccess": "high", "transportationAccess": "high", "socialSupport": "strong", "educationLevel": "doctorate", "incomeLevel": "upper-middle" }
+    }
+  }
+}

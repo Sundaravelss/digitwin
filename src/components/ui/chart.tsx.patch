@@ -1,0 +1,14 @@
+--- a/src/components/ui/chart.tsx
++++ b/src/components/ui/chart.tsx
+@@ -88,8 +88,9 @@ const ChartTooltip = RechartsPrimitive.Tooltip;
+ 
+ const ChartTooltipContent = React.forwardRef<
+   HTMLDivElement,
+-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+-    React.ComponentProps<"div"> & {
++  Omit<React.ComponentProps<typeof RechartsPrimitive.Tooltip>, 'content'> &
++    React.ComponentProps<"div"> &
++    Pick<React.ComponentProps<typeof RechartsPrimitive.Tooltip>, 'active' | 'payload' | 'label'> & {
+       hideLabel?: boolean;
+       hideIndicator?: boolean;
+       indicator?: "line" | "dot" | "dashed";
