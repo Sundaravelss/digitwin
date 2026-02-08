@@ -287,7 +287,10 @@ export async function difyWorkflowRun(args: {
   });
 
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Dify workflow error (${res.status})`);
+  if (!res.ok) {
+    console.warn(`Dify workflow returned ${res.status}: ${text.slice(0, 200)}`);
+    return null;
+  }
 
   const data = JSON.parse(text);
   return {

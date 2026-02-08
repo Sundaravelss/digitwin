@@ -64,6 +64,7 @@ type ChatMessage = {
   content: string;
   imageUrl?: string;
   simulationData?: SimulationData | null;
+  chatSuggestions?: string[];
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -81,14 +82,44 @@ function isSimulationQuery(text: string): boolean {
   return SIMULATION_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
-function tryParseSimulationJson(text: string): SimulationData | null {
+/** Extract a JSON object from text that may include markdown code fences or preamble. */
+function extractJsonFromText(text: string): Record<string, unknown> | null {
+  // 1. Try direct parse
   try {
     const parsed = JSON.parse(text);
-    if (parsed && (parsed.simulation || parsed.patient_alerts || parsed.text_summary)) {
-      return parsed;
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch { /* not plain JSON */ }
+
+  // 2. Strip markdown code fences: ```json ... ```
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (fenceMatch) {
+    try {
+      const parsed = JSON.parse(fenceMatch[1]);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch { /* bad JSON inside fence */ }
+  }
+
+  // 3. Find first top-level { ... } in the text
+  let depth = 0, start = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "{") { if (depth === 0) start = i; depth++; }
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try {
+          const parsed = JSON.parse(text.slice(start, i + 1));
+          if (parsed && typeof parsed === "object") return parsed;
+        } catch { /* keep scanning */ }
+      }
     }
-  } catch {
-    // Not JSON
+  }
+  return null;
+}
+
+function tryParseSimulationJson(text: string): SimulationData | null {
+  const parsed = extractJsonFromText(text);
+  if (parsed && (parsed.simulation || parsed.patient_alerts || parsed.text_summary)) {
+    return parsed as SimulationData;
   }
   return null;
 }
@@ -525,38 +556,49 @@ const HealthCompanion = () => {
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
 
-      // Dify workflow returns outputs.answer; demo fallback uses outputs.text
-      const outputText: string = data.outputs?.answer || data.outputs?.text || data.outputs?.result || "";
+      // Dify workflow returns outputs in various keys depending on the path
+      const rawOutputs = data.outputs || {};
+      let outputText: string =
+        rawOutputs.answer || rawOutputs.text || rawOutputs.result || rawOutputs.output || "";
+      // If Dify returned an object instead of a string, stringify it
+      if (typeof outputText === "object" && outputText !== null) {
+        outputText = JSON.stringify(outputText);
+      }
+      // Fallback: grab any non-empty string value from outputs
+      if (!outputText) {
+        for (const val of Object.values(rawOutputs)) {
+          if (typeof val === "string" && val.trim()) { outputText = val; break; }
+        }
+      }
 
-      // Try to parse structured JSON from the Dify workflow response
+      // Try to parse structured simulation JSON (handles code fences)
       const simData = tryParseSimulationJson(outputText);
 
-      // If it's simulation data, show the rich simulation card
-      // If it's general chat (has "reply" field), show as markdown
-      // Otherwise show raw text
+      // Try to parse as general chat JSON (has "reply" field)
       let chatReply = "";
+      let chatSuggestions: string[] | undefined;
+
       if (simData?.text_summary) {
         chatReply = simData.text_summary;
-      } else if (!simData && outputText) {
-        // Try to parse as general chat response (has "reply" field)
-        try {
-          const parsed = JSON.parse(outputText);
-          if (parsed.reply) {
-            chatReply = parsed.reply;
-          } else {
-            chatReply = outputText;
+      } else if (outputText) {
+        const parsed = extractJsonFromText(outputText);
+        if (parsed?.reply && typeof parsed.reply === "string") {
+          chatReply = parsed.reply;
+          if (Array.isArray(parsed.suggestions)) {
+            chatSuggestions = parsed.suggestions as string[];
           }
-        } catch {
+        } else {
           chatReply = outputText;
         }
       } else {
-        chatReply = outputText || data.reply || "Sorry, I couldn't process that request.";
+        chatReply = data.reply || "Sorry, I couldn't process that request.";
       }
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
         content: chatReply,
         simulationData: simData,
+        chatSuggestions,
       };
       setChatHistory((prev) => [...prev, assistantMessage]);
     } catch (err) {
@@ -661,9 +703,14 @@ const HealthCompanion = () => {
               {msg.role === "assistant" && msg.simulationData ? (
                 <SimulationResultCard data={msg.simulationData} onSuggestionClick={handleSuggestionClick} />
               ) : msg.role === "assistant" ? (
-                <div className="text-sm prose prose-sm dark:prose-invert max-w-none [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_table]:border-collapse [&_th]:border [&_th]:border-border/50 [&_td]:border [&_td]:border-border/50 [&_th]:bg-secondary/50">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
+                <>
+                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_table]:border-collapse [&_th]:border [&_th]:border-border/50 [&_td]:border [&_td]:border-border/50 [&_th]:bg-secondary/50">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                  {msg.chatSuggestions && msg.chatSuggestions.length > 0 && (
+                    <SuggestionPills suggestions={msg.chatSuggestions} onSuggestionClick={handleSuggestionClick} />
+                  )}
+                </>
               ) : (
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
               )}

@@ -252,7 +252,7 @@ export async function POST(req: Request) {
     const effectivePatientId = patientId || "PT-001";
 
     // ── Try Dify Treatment Workflow first ──
-    const DIFY_TREATMENT_KEY = optionalEnv("DIFY_TREATMENT_API_KEY");
+    const DIFY_TREATMENT_KEY = optionalEnv("DIFY_TREATMENT_API_KEY") || optionalEnv("DIFY_API_KEY");
     const DIFY_API_URL = optionalEnv("DIFY_API_URL");
 
     if (DIFY_TREATMENT_KEY && DIFY_API_URL) {

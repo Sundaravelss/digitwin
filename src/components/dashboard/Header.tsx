@@ -52,7 +52,7 @@ const Header = ({ userRole, onRoleChange }: HeaderProps) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="patient">
-              <span className="flex items-center gap-2">🏠 Patient Space</span>
+              <span className="flex items-center gap-2">👤 Patient Space</span>
             </SelectItem>
             <SelectItem value="doctor">
               <span className="flex items-center gap-2">👨‍⚕️ Doctor Space</span>
