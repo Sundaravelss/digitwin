@@ -64,6 +64,7 @@ type TreatmentSimResponse = {
     reason: string;
   }>;
   monitoringRecommendations: string[];
+  warnings: string[];
   clinicalNotes: string;
   source: "ai_simulation" | "dify_enhanced" | "demo";
 };
@@ -93,6 +94,18 @@ function generateDemoProjections(
   const baselineHRV = baseline?.hrvMs || 45;
 
   const projections: BiomarkerProjection[] = [];
+
+  // Start with Day 0 baseline
+  projections.push({
+    day: 0,
+    bloodPressure: `${baselineBP[0]}/${baselineBP[1]}`,
+    glucoseMgDl: baselineGlucose,
+    restingHeartRate: baselineRHR,
+    hrvMs: baselineHRV,
+    inflammationIndex: 50,
+    overallHealth: 65,
+  });
+
   const intervals = [1, 7, 14, 30, 60, 90, 180].filter((d) => d <= days);
 
   for (const day of intervals) {
@@ -235,6 +248,7 @@ function buildDemoResponse(
     thinkingSteps: [],
     alternativeTreatments: demoData.alternativeTreatments || [],
     monitoringRecommendations: demoData.monitoringRecommendations || [],
+    warnings: [],
     clinicalNotes: demoData.clinicalNotes || "",
     source: "demo",
   };
