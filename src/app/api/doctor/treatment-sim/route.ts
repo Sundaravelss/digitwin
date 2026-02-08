@@ -306,11 +306,14 @@ export async function POST(req: Request) {
                   }))
                 : [];
 
-              const response: TreatmentSimResponse = {
+              // Pass raw projections through (frontend handles both snake_case and camelCase)
+              const projections = Array.isArray(wf.projections) ? wf.projections : mapDifyProjections(wf.projections || []);
+
+              const response = {
                 treatmentName: wf.treatment_name || treatment.name,
                 efficacyScore: wf.efficacy_score ?? 75,
                 riskScore: wf.risk_score ?? 20,
-                projections: mapDifyProjections(wf.projections),
+                projections,
                 expectedOutcomes: {
                   positive: wf.expected_outcomes?.positive || [],
                   risks: wf.expected_outcomes?.risks || [],
@@ -321,6 +324,8 @@ export async function POST(req: Request) {
                 alternativeTreatments,
                 monitoringRecommendations: wf.monitoring_recommendations || [],
                 clinicalNotes: wf.clinical_notes || "",
+                warnings: wf.warnings || [],
+                pharmacogenomic_assessment: wf.pharmacogenomic_assessment || null,
                 source: "dify_enhanced",
               };
 

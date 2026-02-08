@@ -18,11 +18,12 @@ import {
   TrendingDown,
   Dna,
   ClipboardList,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -32,12 +33,10 @@ import {
 } from "@/components/ui/select";
 import { allPatients } from "@/data/patientData";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as RechartsTooltip,
+  Tooltip,
   Legend,
   ResponsiveContainer,
   Area,
@@ -53,6 +52,7 @@ type SimulationResult = {
   query: string;
   timestamp: Date;
   source?: string;
+  treatmentName?: string;
   clinicalNotes?: string;
   efficacyScore?: number;
   riskScore?: number;
@@ -64,6 +64,8 @@ type SimulationResult = {
   monitoringRecommendations?: string[];
   warnings?: string[];
   thinkingSteps?: string[];
+  suggestions?: string[];
+  healthScoreImpact?: { metabolic?: number; cardiovascular?: number; overall?: number };
 };
 
 type Biomarker = {
@@ -113,13 +115,32 @@ const sampleQuestions = [
   { icon: Shield, text: "Drug interaction check: warfarin + ibuprofen", category: "interaction" },
 ];
 
-const CHART_COLORS = {
-  glucose: "#ef4444",
-  heartRate: "#8b5cf6",
-  bpSystolic: "#3b82f6",
-  bpDiastolic: "#93c5fd",
-  healthScore: "#22c55e",
-  crp: "#f97316",
+// ── Chart Configuration (matching HealthCompanion style) ─────────────
+
+const CHART_COLORS: Record<string, { stroke: string; fill: string }> = {
+  glucose_mg_dl: { stroke: "#ef4444", fill: "#ef444430" },
+  resting_heart_rate: { stroke: "#ec4899", fill: "#ec489930" },
+  crp_mg_l: { stroke: "#f97316", fill: "#f9731630" },
+  systolic: { stroke: "#8b5cf6", fill: "#8b5cf630" },
+  diastolic: { stroke: "#93c5fd", fill: "#93c5fd30" },
+  overall_health: { stroke: "#22c55e", fill: "#22c55e30" },
+  hrv_ms: { stroke: "#3b82f6", fill: "#3b82f630" },
+  hba1c_percent: { stroke: "#d946ef", fill: "#d946ef30" },
+  ldl_mg_dl: { stroke: "#f59e0b", fill: "#f59e0b30" },
+  overall_health_delta: { stroke: "#14b8a6", fill: "#14b8a630" },
+};
+
+const CHART_LABELS: Record<string, { label: string; unit: string }> = {
+  glucose_mg_dl: { label: "Glucose", unit: "mg/dL" },
+  resting_heart_rate: { label: "Heart Rate", unit: "bpm" },
+  crp_mg_l: { label: "CRP", unit: "mg/L" },
+  systolic: { label: "BP Systolic", unit: "mmHg" },
+  diastolic: { label: "BP Diastolic", unit: "mmHg" },
+  overall_health: { label: "Health Score", unit: "/100" },
+  hrv_ms: { label: "HRV", unit: "ms" },
+  hba1c_percent: { label: "HbA1c", unit: "%" },
+  ldl_mg_dl: { label: "LDL", unit: "mg/dL" },
+  overall_health_delta: { label: "Health Delta", unit: "" },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -159,325 +180,488 @@ function parseBP(bp: string | undefined): { systolic: number; diastolic: number 
   return null;
 }
 
-function severityColor(severity: string) {
-  switch (severity?.toLowerCase()) {
-    case "high":
-    case "contraindicated":
-      return "bg-red-100 border-red-400 text-red-800 dark:bg-red-950/30 dark:border-red-800 dark:text-red-300";
-    case "moderate":
-      return "bg-amber-100 border-amber-400 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300";
-    case "low":
-      return "bg-green-100 border-green-400 text-green-800 dark:bg-green-950/30 dark:border-green-800 dark:text-green-300";
-    default:
-      return "bg-secondary border-border text-foreground";
-  }
+/** Convert day number to human label like "Day 0", "1d", "7d", "30d" etc */
+function dayLabel(day: number): string {
+  if (day === 0) return "Day 0";
+  if (day < 7) return `${day}d`;
+  if (day < 30) return `${day}d`;
+  return `${day}d`;
 }
 
-function scoreColor(score: number, isRisk = false) {
-  const effective = isRisk ? score : 100 - score;
-  if (effective <= 20) return "text-green-600 dark:text-green-400";
-  if (effective <= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
+// ── Alert Badge (matching HealthCompanion) ───────────────────────────
 
-// ── Simulation Result Visualization ────────────────────────────────────
-
-function SimulationResultView({ result }: { result: SimulationResult }) {
-  // Build chart data from projections
-  const chartData = useMemo(() => {
-    if (!result.projections?.length) return [];
-    return result.projections.map((p: any) => {
-      const bp = parseBP(p.bloodPressure || p.blood_pressure);
-      return {
-        day: `Day ${p.day}`,
-        dayNum: p.day,
-        Glucose: p.glucoseMgDl || p.glucose_mg_dl || null,
-        "Heart Rate": p.restingHeartRate || p.resting_heart_rate || null,
-        "BP Systolic": bp?.systolic || null,
-        "BP Diastolic": bp?.diastolic || null,
-        "Health Score": p.overallHealth || p.overall_health || null,
-        CRP: p.crp_mg_l || p.inflammationIndex || null,
-      };
-    });
-  }, [result.projections]);
-
-  // Compute deltas (first vs last projection)
-  const deltas = useMemo(() => {
-    if (chartData.length < 2) return [];
-    const first = chartData[0];
-    const last = chartData[chartData.length - 1];
-    const items: Array<{ label: string; start: number; end: number; delta: number; unit: string; color: string }> = [];
-    if (first.Glucose != null && last.Glucose != null)
-      items.push({ label: "Glucose", start: first.Glucose, end: last.Glucose, delta: last.Glucose - first.Glucose, unit: "mg/dL", color: CHART_COLORS.glucose });
-    if (first["Heart Rate"] != null && last["Heart Rate"] != null)
-      items.push({ label: "Heart Rate", start: first["Heart Rate"], end: last["Heart Rate"], delta: last["Heart Rate"] - first["Heart Rate"], unit: "bpm", color: CHART_COLORS.heartRate });
-    if (first["BP Systolic"] != null && last["BP Systolic"] != null)
-      items.push({ label: "BP Systolic", start: first["BP Systolic"], end: last["BP Systolic"], delta: last["BP Systolic"] - first["BP Systolic"], unit: "mmHg", color: CHART_COLORS.bpSystolic });
-    if (first["Health Score"] != null && last["Health Score"] != null)
-      items.push({ label: "Health Score", start: first["Health Score"], end: last["Health Score"], delta: last["Health Score"] - first["Health Score"], unit: "/100", color: CHART_COLORS.healthScore });
-    return items;
-  }, [chartData]);
+function AlertBadge({ severity, message }: { severity: string; message: string }) {
+  const colorMap: Record<string, string> = {
+    critical: "bg-red-500/15 text-red-600 border-red-500/30",
+    high: "bg-orange-500/15 text-orange-600 border-orange-500/30",
+    moderate: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30",
+    low: "bg-blue-500/10 text-blue-600 border-blue-500/30",
+  };
+  const cls = colorMap[severity?.toLowerCase()] || colorMap.moderate;
 
   return (
-    <div className="space-y-5">
-      {/* Clinical Summary */}
-      {result.clinicalNotes && (
-        <div className="text-sm text-foreground leading-relaxed">
-          {result.clinicalNotes}
-        </div>
-      )}
+    <div className={`flex items-start gap-2 p-2.5 rounded-lg border text-xs ${cls}`}>
+      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+      <div>
+        <span className="font-semibold capitalize">{severity}</span>
+        <span className="mx-1">&middot;</span>
+        <span>{message}</span>
+      </div>
+    </div>
+  );
+}
 
-      {/* Warnings */}
-      {result.warnings && result.warnings.length > 0 && (
-        <div className="space-y-2">
-          {result.warnings.map((w, i) => (
-            <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <span className="text-xs text-amber-800 dark:text-amber-300">{w}</span>
+// ── Biomarker Projections Chart (matching HealthCompanion style) ─────
+
+function BiomarkerProjections({ projections }: { projections: any[] }) {
+  const { chartData, metricKeys, summaries, timepoints } = useMemo(() => {
+    if (!projections?.length) return { chartData: [], metricKeys: [], summaries: [], timepoints: [] };
+
+    // Convert row-based projections to column-based for the chart
+    const timepts = projections.map((p) => dayLabel(p.day ?? 0));
+    const columnData: Record<string, number[]> = {};
+
+    for (const p of projections) {
+      const bp = parseBP(p.bloodPressure || p.blood_pressure);
+
+      const fields: Record<string, number | null | undefined> = {
+        glucose_mg_dl: p.glucoseMgDl ?? p.glucose_mg_dl ?? null,
+        resting_heart_rate: p.restingHeartRate ?? p.resting_heart_rate ?? null,
+        crp_mg_l: p.crp_mg_l ?? (p.inflammationIndex != null ? p.inflammationIndex / 10 : null),
+        systolic: bp?.systolic ?? null,
+        diastolic: bp?.diastolic ?? null,
+        overall_health: p.overallHealth ?? p.overall_health ?? null,
+        hrv_ms: p.hrvMs ?? p.hrv_ms ?? null,
+        hba1c_percent: p.hba1c_percent ?? null,
+        ldl_mg_dl: p.ldl_mg_dl ?? null,
+        overall_health_delta: p.overall_health_delta ?? null,
+      };
+
+      for (const [key, val] of Object.entries(fields)) {
+        if (val != null) {
+          if (!columnData[key]) columnData[key] = [];
+          columnData[key].push(val);
+        }
+      }
+    }
+
+    // Filter to only metrics that have data for all timepoints
+    const mKeys = Object.keys(columnData).filter(
+      (k) => columnData[k] && columnData[k].length === projections.length
+    );
+
+    // Build chart data points
+    const cData = timepts.map((t, i) => {
+      const point: Record<string, string | number> = { time: t };
+      for (const key of mKeys) {
+        point[key] = columnData[key][i] ?? 0;
+      }
+      return point;
+    });
+
+    // Summary: baseline vs final for each metric
+    const sums = mKeys.map((key) => {
+      const values = columnData[key];
+      const baseline = values[0] ?? 0;
+      const final = values[values.length - 1] ?? 0;
+      const delta = final - baseline;
+      const info = CHART_LABELS[key] || { label: key, unit: "" };
+      return { key, baseline, final, delta, ...info };
+    });
+
+    return { chartData: cData, metricKeys: mKeys, summaries: sums, timepoints: timepts };
+  }, [projections]);
+
+  if (chartData.length < 2 || metricKeys.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        Biomarker Projections
+      </div>
+
+      {/* Chart */}
+      <div className="bg-secondary/30 rounded-xl p-3 border border-border/30">
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+            <defs>
+              {metricKeys.map((key) => {
+                const c = CHART_COLORS[key] || { stroke: "#94a3b8", fill: "#94a3b830" };
+                return (
+                  <linearGradient key={key} id={`grad-ts-${key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={c.stroke} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={c.stroke} stopOpacity={0.02} />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.3)" />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+              width={40}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                fontSize: "11px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+              labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+              formatter={(value: number, name: string) => {
+                const info = CHART_LABELS[name] || { label: name, unit: "" };
+                return [`${value} ${info.unit}`, info.label];
+              }}
+            />
+            <Legend
+              iconType="circle"
+              iconSize={6}
+              wrapperStyle={{ fontSize: "10px", paddingTop: "4px" }}
+              formatter={(value: string) => CHART_LABELS[value]?.label || value}
+            />
+            {metricKeys.map((key) => {
+              const c = CHART_COLORS[key] || { stroke: "#94a3b8", fill: "#94a3b830" };
+              return (
+                <Area
+                  key={key}
+                  type="monotone"
+                  dataKey={key}
+                  stroke={c.stroke}
+                  strokeWidth={2}
+                  fill={`url(#grad-ts-${key})`}
+                  dot={{ r: 3, fill: c.stroke, strokeWidth: 0 }}
+                  activeDot={{ r: 5, stroke: c.stroke, strokeWidth: 2, fill: "white" }}
+                />
+              );
+            })}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Metric summary pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {summaries.map((s) => {
+          const isUp = s.delta > 0;
+          const sign = isUp ? "+" : "";
+          // For health score, up is good; for others (glucose, CRP, etc.) down is good
+          const isHealthy = s.key === "overall_health" || s.key === "hrv_ms"
+            ? s.delta >= 0
+            : s.delta <= 0;
+          const color = isHealthy ? "text-green-500" : "text-red-500";
+          return (
+            <span
+              key={s.key}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/50 text-[10px] font-medium border border-border/30"
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: (CHART_COLORS[s.key] || { stroke: "#94a3b8" }).stroke }}
+              />
+              {s.label}: {s.baseline.toFixed(s.unit === "%" && s.baseline < 10 ? 1 : 0)} → {s.final.toFixed(s.unit === "%" && s.final < 10 ? 1 : 0)}
+              <span className={color}>({sign}{s.delta.toFixed(s.unit === "%" && Math.abs(s.delta) < 10 ? 1 : 0)})</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Health Score Impact (matching HealthCompanion) ───────────────────
+
+function HealthScoreImpact({ impact }: { impact: { metabolic?: number; cardiovascular?: number; overall?: number } }) {
+  const items = [
+    { label: "Metabolic", value: impact.metabolic, icon: Activity },
+    { label: "Cardiovascular", value: impact.cardiovascular, icon: Heart },
+    { label: "Overall", value: impact.overall, icon: Zap },
+  ].filter((i) => i.value != null);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Health Score Impact</div>
+      <div className="flex gap-2">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const val = item.value!;
+          const isPositive = val > 0;
+          const sign = isPositive ? "+" : "";
+          return (
+            <div
+              key={item.label}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
+                isPositive
+                  ? "bg-green-500/10 text-green-600 border-green-500/30"
+                  : val < 0
+                  ? "bg-red-500/10 text-red-600 border-red-500/30"
+                  : "bg-secondary/50 text-muted-foreground border-border/30"
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+              <span>{item.label}</span>
+              <span className="font-semibold">{sign}{val}</span>
             </div>
-          ))}
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Suggestion Pills (matching HealthCompanion) ─────────────────────
+
+function SuggestionPills({ suggestions, onSuggestionClick }: { suggestions: string[]; onSuggestionClick?: (text: string) => void }) {
+  if (!suggestions || suggestions.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Suggestions</div>
+      <div className="flex flex-wrap gap-1.5">
+        {suggestions.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => onSuggestionClick?.(s)}
+            className="text-[11px] px-2.5 py-1 rounded-full bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 hover:border-primary/40 transition-colors cursor-pointer"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Drug Interaction Cards ──────────────────────────────────────────
+
+function DrugInteractionCards({ interactions }: { interactions: Array<{ drug: string; severity: string; description: string }> }) {
+  if (!interactions?.length) return null;
+
+  return (
+    <div className="mt-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Drug Interactions</div>
+      <div className="space-y-1.5">
+        {interactions.map((ix, i) => (
+          <AlertBadge
+            key={i}
+            severity={ix.severity}
+            message={`${ix.drug}: ${ix.description}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Expected Outcomes ───────────────────────────────────────────────
+
+function ExpectedOutcomes({ outcomes }: { outcomes: { positive?: string[]; risks?: string[]; sideEffects?: string[] } }) {
+  const hasContent = outcomes.positive?.length || outcomes.risks?.length || outcomes.sideEffects?.length;
+  if (!hasContent) return null;
+
+  return (
+    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+      {outcomes.positive && outcomes.positive.length > 0 && (
+        <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <TrendingUp className="w-3 h-3 text-green-600" />
+            <span className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase">Benefits</span>
+          </div>
+          <ul className="space-y-0.5">
+            {outcomes.positive.map((p, i) => (
+              <li key={i} className="text-[11px] text-green-800 dark:text-green-300">{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {outcomes.risks && outcomes.risks.length > 0 && (
+        <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <TrendingDown className="w-3 h-3 text-red-600" />
+            <span className="text-[10px] font-semibold text-red-700 dark:text-red-400 uppercase">Risks</span>
+          </div>
+          <ul className="space-y-0.5">
+            {outcomes.risks.map((r, i) => (
+              <li key={i} className="text-[11px] text-red-800 dark:text-red-300">{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {outcomes.sideEffects && outcomes.sideEffects.length > 0 && (
+        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <AlertTriangle className="w-3 h-3 text-amber-600" />
+            <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Side Effects</span>
+          </div>
+          <ul className="space-y-0.5">
+            {outcomes.sideEffects.map((s, i) => (
+              <li key={i} className="text-[11px] text-amber-800 dark:text-amber-300">{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Alternative Treatments ──────────────────────────────────────────
+
+function AlternativeTreatments({ treatments }: { treatments: Array<{ name: string; efficacy: number; reason: string; pharmacogenomic_advantage?: string }> }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!treatments?.length) return null;
+
+  const shown = expanded ? treatments : treatments.slice(0, 2);
+
+  return (
+    <div className="mt-3">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
+        <ClipboardList className="w-3 h-3" /> Alternative Treatments
+      </div>
+      <div className="space-y-1.5">
+        {shown.map((alt, i) => (
+          <div key={i} className="flex items-center justify-between bg-secondary/30 rounded-lg px-2.5 py-1.5 text-xs">
+            <div className="flex-1 min-w-0">
+              <span className="font-medium">{alt.name}</span>
+              <span className="text-muted-foreground ml-1.5">{alt.reason}</span>
+              {alt.pharmacogenomic_advantage && (
+                <span className="text-violet-600 dark:text-violet-400 ml-1">PGx: {alt.pharmacogenomic_advantage}</span>
+              )}
+            </div>
+            <span className="text-primary font-semibold ml-2">{alt.efficacy}/100</span>
+          </div>
+        ))}
+      </div>
+      {treatments.length > 2 && (
+        <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-primary mt-1 flex items-center gap-0.5">
+          {expanded ? <><ChevronUp className="w-3 h-3" /> Show less</> : <><ChevronDown className="w-3 h-3" /> +{treatments.length - 2} more</>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Simulation Result Card (matching HealthCompanion SimulationResultCard) ──
+
+function SimulationResultCard({ result, onSuggestionClick }: { result: SimulationResult; onSuggestionClick?: (text: string) => void }) {
+  return (
+    <div className="space-y-2">
+      {/* Clinical Summary Text */}
+      {result.clinicalNotes && (
+        <p className="text-sm whitespace-pre-wrap">{result.clinicalNotes}</p>
+      )}
+
+      {/* Warnings / Alerts */}
+      {result.warnings && result.warnings.length > 0 && (
+        <div className="space-y-1.5 mt-2">
+          {result.warnings.map((w, i) => {
+            // Try to detect severity from text
+            const lower = w.toLowerCase();
+            const severity = lower.includes("critical") || lower.includes("allergy")
+              ? "critical"
+              : lower.includes("contraindicated") || lower.includes("avoid")
+              ? "high"
+              : lower.includes("caution") || lower.includes("monitor")
+              ? "moderate"
+              : "moderate";
+            return <AlertBadge key={i} severity={severity} message={w} />;
+          })}
         </div>
       )}
 
-      {/* Pharmacogenomic Assessment */}
+      {/* Pharmacogenomic Note */}
       {result.pharmacogenomicAssessment && Object.keys(result.pharmacogenomicAssessment).length > 0 && (
-        <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800/40">
-          <div className="flex items-center gap-2 mb-1">
-            <Dna className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-            <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Pharmacogenomic</span>
-          </div>
-          <p className="text-xs text-violet-600 dark:text-violet-400">
+        <div className="flex items-start gap-2 p-2.5 rounded-lg border bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/30 text-xs mt-1">
+          <Dna className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold">Pharmacogenomic:</span>{" "}
             {result.pharmacogenomicAssessment.notes ||
               `Dosing: ${result.pharmacogenomicAssessment.dosing_recommendation || result.pharmacogenomicAssessment.dosingRecommendation || "standard"} | Pathway: ${result.pharmacogenomicAssessment.primary_metabolism_pathway || result.pharmacogenomicAssessment.primaryMetabolismPathway || "N/A"}`}
-          </p>
+          </div>
         </div>
       )}
 
-      {/* Scores */}
+      {/* Scores as compact badges */}
       {(result.efficacyScore != null || result.riskScore != null) && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex gap-2 mt-2">
           {result.efficacyScore != null && (
-            <div className="p-4 rounded-xl bg-secondary/50 text-center">
-              <div className="text-xs text-muted-foreground mb-1">Efficacy Score</div>
-              <div className={`text-2xl font-bold ${scoreColor(result.efficacyScore)}`}>
-                {result.efficacyScore}
-                <span className="text-sm font-normal text-muted-foreground">/100</span>
-              </div>
-              <div className="mt-2 h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-1000"
-                  style={{ width: `${result.efficacyScore}%` }}
-                />
-              </div>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
+              result.efficacyScore >= 70
+                ? "bg-green-500/10 text-green-600 border-green-500/30"
+                : result.efficacyScore >= 40
+                ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                : "bg-red-500/10 text-red-600 border-red-500/30"
+            }`}>
+              <TrendingUp className="w-3 h-3" />
+              <span>Efficacy</span>
+              <span className="font-semibold">{result.efficacyScore}/100</span>
             </div>
           )}
           {result.riskScore != null && (
-            <div className="p-4 rounded-xl bg-secondary/50 text-center">
-              <div className="text-xs text-muted-foreground mb-1">Risk Score</div>
-              <div className={`text-2xl font-bold ${scoreColor(result.riskScore, true)}`}>
-                {result.riskScore}
-                <span className="text-sm font-normal text-muted-foreground">/100</span>
-              </div>
-              <div className="mt-2 h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-400 to-red-500 transition-all duration-1000"
-                  style={{ width: `${result.riskScore}%` }}
-                />
-              </div>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
+              result.riskScore <= 20
+                ? "bg-green-500/10 text-green-600 border-green-500/30"
+                : result.riskScore <= 50
+                ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                : "bg-red-500/10 text-red-600 border-red-500/30"
+            }`}>
+              <AlertTriangle className="w-3 h-3" />
+              <span>Risk</span>
+              <span className="font-semibold">{result.riskScore}/100</span>
             </div>
           )}
         </div>
       )}
 
       {/* Drug Interactions */}
-      {result.drugInteractions && result.drugInteractions.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Pill className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Drug Interactions</span>
-          </div>
-          <div className="space-y-2">
-            {result.drugInteractions.map((ix, i) => (
-              <div key={i} className={`p-3 rounded-lg border-l-4 ${severityColor(ix.severity)}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold">{ix.drug}</span>
-                  <Badge variant="outline" className="text-[10px] h-5">{ix.severity}</Badge>
-                </div>
-                <p className="text-xs opacity-80">{ix.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <DrugInteractionCards interactions={result.drugInteractions || []} />
 
       {/* Biomarker Projections Chart */}
-      {chartData.length > 1 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Activity className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Biomarker Projections</span>
-          </div>
-          <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50/50 to-purple-50/50 dark:from-violet-950/10 dark:to-purple-950/10 border border-border/30">
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="gradGlucose" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.glucose} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={CHART_COLORS.glucose} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gradHealth" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.healthScore} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={CHART_COLORS.healthScore} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gradBP" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.bpSystolic} stopOpacity={0.15} />
-                    <stop offset="95%" stopColor={CHART_COLORS.bpSystolic} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "12px",
-                    fontSize: "11px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: "10px" }} />
-                {chartData[0]?.Glucose != null && (
-                  <Area type="monotone" dataKey="Glucose" stroke={CHART_COLORS.glucose} fill="url(#gradGlucose)" strokeWidth={2} dot={{ r: 3 }} />
-                )}
-                {chartData[0]?.["Heart Rate"] != null && (
-                  <Line type="monotone" dataKey="Heart Rate" stroke={CHART_COLORS.heartRate} strokeWidth={2} dot={{ r: 3 }} />
-                )}
-                {chartData[0]?.["BP Systolic"] != null && (
-                  <Area type="monotone" dataKey="BP Systolic" stroke={CHART_COLORS.bpSystolic} fill="url(#gradBP)" strokeWidth={2} dot={{ r: 3 }} />
-                )}
-                {chartData[0]?.["Health Score"] != null && (
-                  <Area type="monotone" dataKey="Health Score" stroke={CHART_COLORS.healthScore} fill="url(#gradHealth)" strokeWidth={2} dot={{ r: 3 }} />
-                )}
-              </AreaChart>
-            </ResponsiveContainer>
+      {result.projections && result.projections.length > 1 && (
+        <BiomarkerProjections projections={result.projections} />
+      )}
 
-            {/* Delta Summary */}
-            {deltas.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-border/30">
-                {deltas.map((d) => (
-                  <div key={d.label} className="flex items-center gap-1.5 text-xs">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="text-muted-foreground">{d.label}:</span>
-                    <span className="font-medium">{d.start} &rarr; {d.end}</span>
-                    <span className={`font-semibold ${d.delta < 0 ? "text-green-600" : d.delta > 0 ? "text-red-500" : "text-muted-foreground"}`}>
-                      ({d.delta > 0 ? "+" : ""}{d.delta})
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Health Score Impact */}
+      {result.healthScoreImpact && (
+        <HealthScoreImpact impact={result.healthScoreImpact} />
       )}
 
       {/* Expected Outcomes */}
       {result.expectedOutcomes && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {result.expectedOutcomes.positive && result.expectedOutcomes.positive.length > 0 && (
-            <div className="p-3 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/30">
-              <div className="flex items-center gap-1.5 mb-2">
-                <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-                <span className="text-xs font-semibold text-green-700 dark:text-green-400">Benefits</span>
-              </div>
-              <ul className="space-y-1">
-                {result.expectedOutcomes.positive.map((p, i) => (
-                  <li key={i} className="text-xs text-green-800 dark:text-green-300">{p}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {result.expectedOutcomes.risks && result.expectedOutcomes.risks.length > 0 && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/30">
-              <div className="flex items-center gap-1.5 mb-2">
-                <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-                <span className="text-xs font-semibold text-red-700 dark:text-red-400">Risks</span>
-              </div>
-              <ul className="space-y-1">
-                {result.expectedOutcomes.risks.map((r, i) => (
-                  <li key={i} className="text-xs text-red-800 dark:text-red-300">{r}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {result.expectedOutcomes.sideEffects && result.expectedOutcomes.sideEffects.length > 0 && (
-            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30">
-              <div className="flex items-center gap-1.5 mb-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Side Effects</span>
-              </div>
-              <ul className="space-y-1">
-                {result.expectedOutcomes.sideEffects.map((s, i) => (
-                  <li key={i} className="text-xs text-amber-800 dark:text-amber-300">{s}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        <ExpectedOutcomes outcomes={result.expectedOutcomes} />
       )}
 
       {/* Alternative Treatments */}
-      {result.alternativeTreatments && result.alternativeTreatments.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <ClipboardList className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Alternative Treatments</span>
-          </div>
-          <div className="space-y-2">
-            {result.alternativeTreatments.map((alt, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                <div className="text-center min-w-[50px]">
-                  <div className="text-lg font-bold text-primary">{alt.efficacy}</div>
-                  <div className="text-[9px] text-muted-foreground">/100</div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-foreground">{alt.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{alt.reason}</div>
-                  {alt.pharmacogenomic_advantage && (
-                    <div className="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5">
-                      PGx: {alt.pharmacogenomic_advantage}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <AlternativeTreatments treatments={result.alternativeTreatments || []} />
 
       {/* Monitoring Recommendations */}
       {result.monitoringRecommendations && result.monitoringRecommendations.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Heart className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Monitoring</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Monitoring</div>
+          <div className="flex flex-wrap gap-1.5">
             {result.monitoringRecommendations.map((rec, i) => (
-              <div key={i} className="px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30 text-xs text-blue-700 dark:text-blue-300">
+              <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
                 {rec}
-              </div>
+              </span>
             ))}
           </div>
         </div>
       )}
 
+      {/* Suggestion Pills */}
+      <SuggestionPills suggestions={result.suggestions || []} onSuggestionClick={onSuggestionClick} />
+
       {/* Source badge */}
       {result.source && (
-        <div className="flex items-center gap-2 pt-2 border-t border-border/20">
-          <Badge variant="outline" className="text-[10px] h-5 px-1.5">
-            {result.source === "dify_enhanced" ? "Dify Workflow" : result.source === "ai_simulation" ? "AI Simulation" : "Demo Data"}
-          </Badge>
+        <div className="text-[10px] text-muted-foreground mt-2 italic">
+          Source: {result.source === "dify_enhanced" ? "Dify Workflow" : result.source === "ai_simulation" ? "AI Simulation" : "Demo Data"}
         </div>
       )}
     </div>
@@ -575,22 +759,60 @@ const TreatmentSimulator = () => {
 
       const data = await res.json();
 
+      // Normalize side_effects → sideEffects
+      const rawOutcomes = data.expectedOutcomes || data.expected_outcomes;
+      const expectedOutcomes = rawOutcomes ? {
+        positive: rawOutcomes.positive || [],
+        risks: rawOutcomes.risks || [],
+        sideEffects: rawOutcomes.sideEffects || rawOutcomes.side_effects || [],
+      } : undefined;
+
+      // Compute health score impact from projections if not provided
+      let healthScoreImpact = data.healthScoreImpact || data.health_score_impact;
+      if (!healthScoreImpact) {
+        const projs = data.projections || [];
+        if (projs.length >= 2) {
+          const first = projs[0];
+          const last = projs[projs.length - 1];
+          const firstHealth = first.overallHealth ?? first.overall_health ?? null;
+          const lastHealth = last.overallHealth ?? last.overall_health ?? null;
+          if (firstHealth != null && lastHealth != null) {
+            const delta = lastHealth - firstHealth;
+            healthScoreImpact = {
+              metabolic: Math.round(delta * 0.4),
+              cardiovascular: Math.round(delta * 0.3),
+              overall: delta,
+            };
+          }
+        }
+      }
+
+      // Generate contextual suggestions if not provided
+      const suggestions = data.suggestions || [
+        `Check ${effectiveTreatmentName} drug interactions with current medications`,
+        `Try alternative treatment for this patient`,
+        `Adjust dosage and re-simulate`,
+      ];
+
       const simResult: SimulationResult = {
         id: Date.now().toString(),
         query: queryText,
         timestamp: new Date(),
         source: data.source,
+        treatmentName: data.treatmentName || data.treatment_name,
         clinicalNotes: data.clinicalNotes || data.clinical_notes,
         efficacyScore: data.efficacyScore ?? data.efficacy_score,
         riskScore: data.riskScore ?? data.risk_score,
         pharmacogenomicAssessment: data.pharmacogenomicAssessment || data.pharmacogenomic_assessment,
         drugInteractions: data.drugInteractions || data.drug_interactions || [],
-        expectedOutcomes: data.expectedOutcomes || data.expected_outcomes,
+        expectedOutcomes,
         projections: data.projections || [],
         alternativeTreatments: data.alternativeTreatments || data.alternative_treatments || [],
         monitoringRecommendations: data.monitoringRecommendations || data.monitoring_recommendations || [],
         warnings: data.warnings || [],
         thinkingSteps: data.thinkingSteps || data.thinking_steps || [],
+        suggestions,
+        healthScoreImpact,
       };
 
       setResults((prev) => [...prev, simResult]);
@@ -618,6 +840,11 @@ const TreatmentSimulator = () => {
     }
   };
 
+  const handleSuggestionClick = (text: string) => {
+    setQuery(text);
+    handleSubmit(text);
+  };
+
   return (
     <div className="health-card p-6 h-full flex flex-col">
       {/* Header */}
@@ -633,15 +860,9 @@ const TreatmentSimulator = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs gap-1">
-            <Zap className="w-3 h-3" />
-            v2
-          </Badge>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-            Ready
-          </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-xs font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          Ready
         </div>
       </div>
 
@@ -746,8 +967,8 @@ const TreatmentSimulator = () => {
         </div>
       </div>
 
-      {/* Results Area */}
-      <div className="flex-1 bg-secondary/20 rounded-2xl p-5 mb-4 min-h-[300px] max-h-[600px] border border-border/30 overflow-y-auto">
+      {/* Chat / Results Area */}
+      <div className="flex-1 bg-secondary/20 rounded-2xl p-5 mb-4 min-h-[300px] max-h-[600px] border border-border/30 overflow-y-auto shadow-[0_2px_12px_rgba(0,0,0,0.06)] space-y-4">
         {results.length === 0 && !isLoading ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/10 to-purple-600/10 flex items-center justify-center mb-4">
@@ -764,51 +985,45 @@ const TreatmentSimulator = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <>
             {results.map((result) => (
               <div key={result.id}>
-                {/* User query */}
-                <div className="flex justify-end mb-3">
-                  <div className="rounded-2xl rounded-tr-sm p-3 px-4 bg-primary text-primary-foreground shadow-[var(--shadow-sm)] max-w-[70%]">
+                {/* User query bubble */}
+                <div className="flex items-start gap-3 flex-row-reverse">
+                  <div className="rounded-2xl p-4 max-w-[85%] bg-primary text-primary-foreground rounded-tr-sm">
                     <p className="text-sm">{result.query}</p>
                   </div>
                 </div>
+
                 {/* Simulation result */}
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-3 mt-3">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                     <Sparkles className="w-4 h-4 text-white" />
                   </div>
-                  <div className="flex-1 rounded-2xl rounded-tl-sm p-5 bg-card shadow-[var(--shadow-sm)] border border-border/20">
-                    <SimulationResultView result={result} />
+                  <div className="bg-card rounded-2xl rounded-tl-sm p-4 shadow-[var(--shadow-sm)] max-w-[85%]">
+                    <SimulationResultCard result={result} onSuggestionClick={handleSuggestionClick} />
                   </div>
                 </div>
               </div>
             ))}
 
-            {/* Loading */}
+            {/* Loading indicator */}
             {isLoading && (
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
-                <div className="bg-card rounded-2xl rounded-tl-sm p-5 shadow-[var(--shadow-sm)] border border-border/20">
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
+                <div className="bg-card rounded-2xl rounded-tl-sm p-4 shadow-[var(--shadow-sm)]">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Running treatment simulation pipeline...</span>
-                  </div>
-                  <div className="space-y-2">
-                    {["Loading patient profile...", "Analyzing pharmacogenomics...", "Checking drug interactions..."].map((step, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground/60">
-                        <div className="w-4 h-4 border-2 border-violet-300 border-t-transparent rounded-full animate-spin" style={{ animationDelay: `${i * 0.3}s` }} />
-                        {step}
-                      </div>
-                    ))}
+                    Running treatment simulation pipeline...
                   </div>
                 </div>
               </div>
             )}
+
             <div ref={resultsEndRef} />
-          </div>
+          </>
         )}
       </div>
 
@@ -821,17 +1036,17 @@ const TreatmentSimulator = () => {
               key={q.text}
               onClick={() => handleSubmit(q.text)}
               disabled={isLoading}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/50 border border-border/50 hover:bg-violet-50 dark:hover:bg-violet-950/20 hover:border-violet-300 dark:hover:border-violet-700 hover:text-violet-700 dark:hover:text-violet-300 text-xs text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/50 shadow-[0_1px_6px_rgba(0,0,0,0.06)] hover:bg-primary/5 hover:border-primary/20 hover:text-primary hover:shadow-[0_3px_12px_rgba(0,0,0,0.1)] text-sm text-muted-foreground transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[240px]">{q.text}</span>
+              <Icon className="w-4 h-4" />
+              {q.text}
             </button>
           );
         })}
       </div>
 
       {/* Input */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 shadow-[0_2px_12px_rgba(0,0,0,0.06)] rounded-xl">
         <Input
           ref={inputRef}
           placeholder="Describe a treatment to simulate, or ask about drug interactions..."
