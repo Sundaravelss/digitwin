@@ -10,6 +10,11 @@ import {
   type BiomarkerDay,
 } from "@/lib/demoBiomarkers";
 import Onboarding from "@/components/Onboarding";
+import ReactMarkdown from "react-markdown";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Area, AreaChart,
+} from "recharts";
 
 type RiskLevel = "danger" | "warning" | "info";
 
@@ -146,6 +151,50 @@ type BiomarkerImpact = {
   timeToImpact: string;
 };
 
+type SimulationData = {
+  patient_id?: string;
+  patient_name?: string;
+  item_identified?: string;
+  item_category?: string;
+  nutritional_or_pharma_data?: {
+    calories?: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+    sodium_mg?: number;
+    sugar_g?: number;
+    fiber_g?: number;
+    glycemic_index?: number;
+    active_ingredients?: string[];
+    mechanism?: string;
+  };
+  patient_alerts?: Array<{
+    type: string;
+    severity: "low" | "moderate" | "high" | "critical";
+    message: string;
+    evidence?: string;
+  }>;
+  simulation?: {
+    timepoints?: string[];
+    projections?: Record<string, number[]>;
+    sleep_quality_impact?: string;
+    peak_glucose_time?: string;
+    return_to_baseline?: string;
+    health_score_impact?: { metabolic?: number; cardiovascular?: number; overall?: number };
+  };
+  activity_suggestions?: Array<{
+    activity_name: string;
+    duration_minutes: number | string;
+    calories_burned: number | string;
+    intensity: string;
+    note?: string;
+  }> | null;
+  text_summary?: string;
+  concern?: string;
+  pharmacogenomic_note?: string;
+  suggestions?: string[];
+};
+
 type CompanionMessage = {
   id: string;
   role: "user" | "assistant";
@@ -154,6 +203,7 @@ type CompanionMessage = {
   simulationType?: SimulationType | null;
   nutritionData?: NutritionData | null;
   biomarkerImpact?: BiomarkerImpact | null;
+  simulationData?: SimulationData | null;
   timestamp: Date;
 };
 
@@ -909,13 +959,38 @@ export default function Home() {
   };
 
   // Health Companion handler
+  const SIMULATION_KEYWORDS = [
+    "pizza", "burger", "food", "rice", "salad", "chicken", "eating", "ate", "eat",
+    "meal", "snack", "breakfast", "lunch", "dinner", "drink", "coffee", "beer",
+    "medication", "medicine", "drug", "pill", "mg", "amoxicillin", "metformin",
+    "ibuprofen", "paracetamol", "doliprane", "aspirin", "tylenol", "taking",
+    "impact of", "simulate", "what happens if", "what if i", "sleep",
+  ];
+
+  function isSimulationQuery(text: string): boolean {
+    const lower = text.toLowerCase();
+    return SIMULATION_KEYWORDS.some((kw) => lower.includes(kw));
+  }
+
+  function tryParseSimulationJson(text: string): SimulationData | null {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && (parsed.simulation || parsed.patient_alerts || parsed.text_summary)) {
+        return parsed as SimulationData;
+      }
+    } catch {
+      // Not JSON
+    }
+    return null;
+  }
+
   const onSendToCompanion = async (messageOverride?: string) => {
     const messageToSend = messageOverride || companionInput;
     if (!messageToSend.trim() && !companionImage) return;
-    
+
     setCompanionError(null);
     setCompanionBusy(true);
-    
+
     const userMessageId = `user-${Date.now()}`;
     const userMessage: CompanionMessage = {
       id: userMessageId,
@@ -924,57 +999,94 @@ export default function Home() {
       imageUrl: companionImagePreview || undefined,
       timestamp: new Date(),
     };
-    
+
     setCompanionMessages((prev) => [...prev, userMessage]);
     setCompanionInput("");
     setCompanionImage(null);
     setCompanionImagePreview(null);
-    
+
     try {
-      const form = new FormData();
-      form.set("message", messageToSend);
-      form.set("profile", profileJson);
-      form.set("biomarkers", JSON.stringify({
-        dateISO: day.dateISO,
-        steps: day.steps,
-        activeCalories: day.activeCalories,
-        sleepHours: day.sleepHours,
-        restingHeartRate: day.restingHeartRate,
-        hrvMs: day.hrvMs,
-        bloodPressure: `${day.systolic}/${day.diastolic}`,
-        glucoseMgDl: day.glucoseMgDl,
-      }));
-      form.set("history", JSON.stringify(companionMessages.slice(-6).map(m => ({
-        role: m.role,
-        content: m.content,
-      }))));
-      
-      if (companionImage) {
-        form.set("image", companionImage);
+      const useSimulation = isSimulationQuery(messageToSend) || !!companionImage;
+
+      if (useSimulation) {
+        // Route to patient-intake (Dify workflow) for simulation
+        const res = await fetch("/api/patient-intake", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemText: messageToSend,
+            patientId: "PT_001",
+            imageUrl: null,
+            simulationWindow: "both",
+            stream: false,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+
+        const outputText: string = data.outputs?.answer || data.outputs?.text || data.outputs?.result || "";
+        const simData = tryParseSimulationJson(outputText);
+
+        const assistantMessage: CompanionMessage = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: simData?.text_summary || outputText || "Simulation complete.",
+          simulationData: simData,
+          timestamp: new Date(),
+        };
+        setCompanionMessages((prev) => [...prev, assistantMessage]);
+
+        if (simData?.suggestions && simData.suggestions.length > 0) {
+          setCompanionSuggestions(simData.suggestions);
+        }
+      } else {
+        // Route to health-companion for general chat
+        const form = new FormData();
+        form.set("message", messageToSend);
+        form.set("profile", profileJson);
+        form.set("biomarkers", JSON.stringify({
+          dateISO: day.dateISO,
+          steps: day.steps,
+          activeCalories: day.activeCalories,
+          sleepHours: day.sleepHours,
+          restingHeartRate: day.restingHeartRate,
+          hrvMs: day.hrvMs,
+          bloodPressure: `${day.systolic}/${day.diastolic}`,
+          glucoseMgDl: day.glucoseMgDl,
+        }));
+        form.set("history", JSON.stringify(companionMessages.slice(-6).map(m => ({
+          role: m.role,
+          content: m.content,
+        }))));
+
+        if (companionImage) {
+          form.set("image", companionImage);
+        }
+
+        const data = await postFormData<CompanionResponse>("/api/health-companion", form);
+
+        const assistantMessage: CompanionMessage = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: data.reply,
+          simulationType: data.simulationType,
+          nutritionData: data.nutritionData,
+          biomarkerImpact: data.biomarkerImpact,
+          timestamp: new Date(),
+        };
+
+        setCompanionMessages((prev) => [...prev, assistantMessage]);
+
+        if (data.suggestions && data.suggestions.length > 0) {
+          setCompanionSuggestions(data.suggestions);
+        }
+
+        if (data.updatedBiomarkers) {
+          setSimulatedBiomarkers(data.updatedBiomarkers);
+        }
       }
-      
-      const data = await postFormData<CompanionResponse>("/api/health-companion", form);
-      
-      const assistantMessage: CompanionMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: data.reply,
-        simulationType: data.simulationType,
-        nutritionData: data.nutritionData,
-        biomarkerImpact: data.biomarkerImpact,
-        timestamp: new Date(),
-      };
-      
-      setCompanionMessages((prev) => [...prev, assistantMessage]);
-      
-      if (data.suggestions && data.suggestions.length > 0) {
-        setCompanionSuggestions(data.suggestions);
-      }
-      
-      if (data.updatedBiomarkers) {
-        setSimulatedBiomarkers(data.updatedBiomarkers);
-      }
-      
+
       // Scroll to bottom
       setTimeout(() => {
         companionChatRef.current?.scrollTo({
@@ -982,7 +1094,7 @@ export default function Home() {
           behavior: "smooth",
         });
       }, 100);
-      
+
     } catch (e) {
       setCompanionError(e instanceof Error ? e.message : "Unknown error");
     } finally {

@@ -179,6 +179,132 @@ export async function difyStreamQuery(args: {
   };
 }
 
+// ── Dify Workflow API (/v1/workflows/run) ──
+
+export type DifyWorkflowResponse = {
+  workflowRunId: string;
+  taskId: string;
+  status: "running" | "succeeded" | "failed" | "stopped";
+  outputs: Record<string, unknown>;
+  error?: string;
+  elapsedTime?: number;
+  totalTokens?: number;
+  totalSteps?: number;
+};
+
+export async function difyWorkflowRun(args: {
+  inputs: Record<string, unknown>;
+  user: string;
+  files?: Array<{ type: string; transfer_method: string; upload_file_id: string }>;
+  apiKeyEnv?: string;
+}): Promise<DifyWorkflowResponse | null> {
+  const baseUrl = optionalEnv("DIFY_API_URL");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  if (!baseUrl || !apiKey) return null;
+
+  const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/workflows/run`;
+
+  const payload: Record<string, unknown> = {
+    inputs: args.inputs,
+    response_mode: "blocking",
+    user: args.user,
+  };
+  if (args.files && args.files.length > 0) {
+    payload.files = args.files;
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || `Dify workflow error (${res.status})`);
+
+  const data = JSON.parse(text);
+  return {
+    workflowRunId: data.workflow_run_id,
+    taskId: data.task_id,
+    status: data.data?.status ?? "failed",
+    outputs: data.data?.outputs ?? {},
+    error: data.data?.error ?? undefined,
+    elapsedTime: data.data?.elapsed_time,
+    totalTokens: data.data?.total_tokens,
+    totalSteps: data.data?.total_steps,
+  };
+}
+
+export async function difyWorkflowStream(args: {
+  inputs: Record<string, unknown>;
+  user: string;
+  apiKeyEnv?: string;
+}): Promise<{
+  stream: ReadableStream<Uint8Array>;
+  response: Response;
+} | null> {
+  const baseUrl = optionalEnv("DIFY_API_URL");
+  const apiKey = optionalEnv(args.apiKeyEnv || "DIFY_INTAKE_API_KEY");
+  if (!baseUrl || !apiKey) return null;
+
+  const url = `${baseUrl.replace(/\/$/, "").replace(/\/v1$/, "")}/v1/workflows/run`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      inputs: args.inputs,
+      response_mode: "streaming",
+      user: args.user,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Dify workflow stream error (${res.status})`);
+  }
+
+  if (!res.body) return null;
+
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const transformStream = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr || jsonStr === "[DONE]") continue;
+          controller.enqueue(encoder.encode(`data: ${jsonStr}\n\n`));
+        }
+      }
+    },
+    flush(controller) {
+      if (buffer.startsWith("data: ")) {
+        const jsonStr = buffer.slice(6).trim();
+        if (jsonStr && jsonStr !== "[DONE]") {
+          controller.enqueue(encoder.encode(`data: ${jsonStr}\n\n`));
+        }
+      }
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+    },
+  });
+
+  const stream = res.body.pipeThrough(transformStream);
+  return { stream, response: res };
+}
+
 // Check drug interactions using Dify workflow
 export async function difyDrugInteractionCheck(args: {
   drugName: string;
