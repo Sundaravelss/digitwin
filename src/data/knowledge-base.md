@@ -16,7 +16,7 @@ This file is the **single source of truth** for both the Dify knowledge base (cl
 
 | ID | Name | Age | Gender | Health Score | Risk Level |
 |----|------|-----|--------|-------------|------------|
-| PT-001 | Sundar Selvaraj | 32 | male | 76/100 | moderate |
+| PT-001 | Sundar Selvaraj | 32 | male | 64/100 | moderate |
 | PT-002 | Maria Rodriguez | 47 | female | 68/100 | moderate |
 | PT-003 | James Chen | 33 | male | 92/100 | low |
 | PT-004 | Sarah Thompson | 57 | female | 42/100 | critical |
@@ -84,7 +84,7 @@ This file is the **single source of truth** for both the Dify knowledge base (cl
 ### Glucose Panel
 | Marker | Value | Unit | Normal Range | Status |
 |--------|-------|------|-------------|--------|
-| Fasting Glucose | 98 | mg/dL | 70-100 | Normal |
+| Fasting Glucose | 126 | mg/dL | 70-100 | **Elevated** |
 | HbA1c | 5.7 | % | 4.0-5.6 | **Borderline** |
 | Postprandial Glucose | 132 | mg/dL | 70-140 | Normal |
 

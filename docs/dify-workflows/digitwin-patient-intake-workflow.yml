@@ -1,36 +1,124 @@
 ##############################################################################
-# DigiTwin — Patient Health Companion Workflow (Dify DSL)
+# DigiTwin — Patient Health Companion Workflow v2 (Dify DSL)
+#
+# ARCHITECTURE (v3 — optimized):
+#   A merged Classify+Route node (gpt-4o-mini) does intent classification AND
+#   item identification in ONE LLM call. It also analyzes image content before
+#   deciding — no blanket "image = simulation" assumption.
+#
+#   • general_chat  → fast path: KB + LLM Direct Answer (2 LLM calls)
+#   • simulation    → KB retrieval + API calls run IN PARALLEL, then
+#                     a single Analysis+Simulation LLM (2 LLM calls total)
+#
+#   General queries ("what's my blood pressure?") skip the entire simulation
+#   pipeline. Simulation queries save time via parallel KB + API execution.
+#
+#   Streaming node events (node_started/node_finished) emit descriptive
+#   titles for real-time "thinking" visibility in the frontend.
 #
 # Import this file into Dify:
 #   Dify Dashboard → Create App → Import DSL → Upload this .yml
 #
 # Before importing:
-#   1. Create a Knowledge Base named "patient-profiles" and upload the 5
-#      Markdown files from docs/knowledge-base/
-#   2. After import, update the dataset_ids in the Knowledge Retrieval node
-#      to match your KB's actual ID (visible in the Dify KB URL)
+#   1. Create a Knowledge Base in Dify named "knowledge-base" and upload
+#      the file: src/data/knowledge-base.md
+#   2. After import, open each Knowledge Retrieval node and select the
+#      "knowledge-base" dataset (there are 2 KB nodes — one per path)
 #   3. Set environment variables (USDA_API_KEY) in the workflow settings
 #
-# Architecture:
-#   Start → Knowledge Retrieval → IF food/med
-#     ├─ Food  → HTTP USDA + HTTP Open Food Facts (parallel, Nutri-Score)
-#     └─ Med   → HTTP OpenFDA
-#     → LLM Cross-Reference → LLM Simulation → Code Validate → Answer
+# AGENT MODE ALTERNATIVE:
+#   To convert the simulation path into a Dify Agent node:
+#   1. Switch app mode to "advanced-chat" (chatflow)
+#   2. Replace nodes B1–B6 with a single Agent node
+#   3. Add KB Retrieval, USDA, OpenFDA as Agent tools
+#   4. The Agent LLM autonomously decides which tools to call
+#   Note: Agent mode makes tool calls sequential (1 LLM round per tool).
+#   The current parallel HTTP calls (USDA + OFF) in workflow mode are faster
+#   for food queries. Use Agent mode only if flexibility > raw speed.
+#
+# Architecture Flow:
+#
+#   ┌─────────┐    ┌───────────────────────┐    ┌──────────────┐    ┌────────────────┐
+#   │  START  │───▶│ LLM Classify + Route  │───▶│ Code Extract │───▶│ IF/ELSE Intent │
+#   │         │    │    (gpt-4o-mini)       │    │ Intent & Item│    │                │
+#   └─────────┘    └───────────────────────┘    └──────────────┘    └───────┬────────┘
+#                                                                     ┌─────┴──────┐
+#                                                                     │            │
+#                                                               [general]    [simulation]
+#                                                                     │            │
+#                  ╔══════════════════════════╗         ╔══════════════╧════════════════════════════╗
+#                  ║    PATH A: General Chat  ║         ║       PATH B: Simulation (parallel)      ║
+#                  ╠══════════════════════════╣         ╠═══════════════════════════════════════════╣
+#                  ║                          ║         ║                                           ║
+#                  ║  ┌────────────────────┐  ║         ║  ┌──────────────────┐                     ║
+#                  ║  │ KB: Patient Profile│  ║         ║  │ KB: Patient      │──────────────┐      ║
+#                  ║  └────────┬───────────┘  ║         ║  │ Clinical Profile │ (parallel)   │      ║
+#                  ║           │              ║         ║  └──────────────────┘              │      ║
+#                  ║           ▼              ║         ║                                    │      ║
+#                  ║  ┌────────────────────┐  ║         ║  ┌──────────────────┐              │      ║
+#                  ║  │ LLM Direct Answer  │  ║         ║  │ IF Food or Med?  │              │      ║
+#                  ║  │     (gpt-4o)       │  ║         ║  └───────┬──────────┘              │      ║
+#                  ║  └────────┬───────────┘  ║         ║    ┌────┴─────┐                    │      ║
+#                  ║           │              ║         ║    │          │                     │      ║
+#                  ║           ▼              ║         ║ [food]    [med]                    │      ║
+#                  ║  ┌────────────────────┐  ║         ║    │          │                     │      ║
+#                  ║  │     ANSWER         │  ║         ║    ▼          ▼                     │      ║
+#                  ║  └────────────────────┘  ║         ║ ┌──────┐  ┌─────────┐              │      ║
+#                  ║                          ║         ║ │ USDA │  │ OpenFDA │              │      ║
+#                  ╚══════════════════════════╝         ║ └──┬───┘  └───┬─────┘              │      ║
+#                                                       ║    │          │                     │      ║
+#                                                       ║    ▼          ▼                     │      ║
+#                                                       ║ ┌──────┐  ┌─────────┐              │      ║
+#                                                       ║ │Check │  │ Check   │              │      ║
+#                                                       ║ │USDA  │  │ OpenFDA │              │      ║
+#                                                       ║ └──┬───┘  └───┬─────┘              │      ║
+#                                                       ║  ┌─┴──┐    ┌──┴──┐                 │      ║
+#                                                       ║  │OK? │    │OK?  │                 │      ║
+#                                                       ║  ├─Y──┤    ├──Y──┤                 │      ║
+#                                                       ║  │ N  │    │  N  │                 │      ║
+#                                                       ║  ▼    │    ▼     │                 │      ║
+#                                                       ║ Web   │   Web    │                 │      ║
+#                                                       ║ Search│   Search │                 │      ║
+#                                                       ║  │    │    │     │                 │      ║
+#                                                       ║  └─┬──┘    └──┬──┘                 │      ║
+#                                                       ║    └────┬─────┘                    │      ║
+#                                                       ║         ▼                          │      ║
+#                                                       ║  ┌──────────────┐                  │      ║
+#                                                       ║  │  Merge API   │                  │      ║
+#                                                       ║  │   Results    │                  │      ║
+#                                                       ║  └──────┬───────┘                  │      ║
+#                                                       ║         └──────────┬───────────────┘      ║
+#                                                       ║                    ▼                       ║
+#                                                       ║  ┌─────────────────────────────────────┐  ║
+#                                                       ║  │ LLM Analysis + Simulation (gpt-4o)  │  ║
+#                                                       ║  │ • Cross-reference safety checks     │  ║
+#                                                       ║  │ • Biomarker projections             │  ║
+#                                                       ║  │ • Activity suggestions by calories  │  ║
+#                                                       ║  └──────────────────┬──────────────────┘  ║
+#                                                       ║                     ▼                      ║
+#                                                       ║           ┌──────────────────┐             ║
+#                                                       ║           │  Code Validate   │             ║
+#                                                       ║           └────────┬─────────┘             ║
+#                                                       ║                    ▼                       ║
+#                                                       ║             ┌────────────┐                 ║
+#                                                       ║             │   ANSWER   │                 ║
+#                                                       ║             └────────────┘                 ║
+#                                                       ╚═══════════════════════════════════════════╝
 ##############################################################################
 app:
   description: >-
-    DigiTwin Patient Health Companion — Agentic workflow that analyzes food,
-    snacks, supplements, or medications against a patient's full clinical
-    profile (biomarkers, pharmacogenomics, conditions, allergies) and produces
-    structured biomarker projection simulations.
+    DigiTwin Patient Health Companion v2 — Intent-routed workflow that handles
+    general health queries instantly and only runs the full simulation pipeline
+    (USDA, OpenFDA, biomarker projections) when the user asks about a specific
+    food, snack, supplement, or medication. API failures fall back to web search.
   icon: "\U0001F9EC"
   icon_background: "#E4FBCC"
   mode: workflow
-  name: DigiTwin Patient Intake Analyzer
+  name: DigiTwin Patient Intake Analyzer v2
   use_icon_as_answer_icon: false
 
 kind: app
-version: 0.1.2
+version: 0.1.5
 
 workflow:
   conversation_variables: []
@@ -39,7 +127,7 @@ workflow:
     - id: env_usda_key
       name: USDA_API_KEY
       value_type: secret
-      value: ""
+      value: "al8CU1Io2OPnc53rdbejlecexiOb0MHmi8lhMlSM"
       description: "Free key from https://fdc.nal.usda.gov/api-key-signup"
 
   features:
@@ -58,7 +146,10 @@ workflow:
   graph:
     # ── NODES ──────────────────────────────────────────────────────────────
     nodes:
-      # ── 1. START ─────────────────────────────────────────────────────────
+
+      # ══════════════════════════════════════════════════════════════════════
+      # 1. START
+      # ══════════════════════════════════════════════════════════════════════
       - data:
           title: Start
           type: start
@@ -69,7 +160,7 @@ workflow:
               required: true
               type: text-input
               variable: patient_id
-            - label: Item Description
+            - label: User Query
               max_length: 1024
               options: []
               required: true
@@ -99,19 +190,242 @@ workflow:
         type: custom
         width: 244
 
-      # ── 2. KNOWLEDGE RETRIEVAL — Patient Profile ─────────────────────────
+      # ══════════════════════════════════════════════════════════════════════
+      # 2. LLM — Classify & Route (merged intent + item identification)
+      # ══════════════════════════════════════════════════════════════════════
       - data:
-          title: Retrieve Patient Profile
+          title: Classify Query & Identify Item
           desc: >-
-            Queries the patient-profiles Knowledge Base by patient_id to pull
-            demographics, biomarkers, pharmacogenomics, conditions, allergies,
-            medications, lifestyle, and longitudinal data.
+            Single fast LLM call that classifies intent AND identifies the
+            food/medication item (if any). Replaces the old separate Router +
+            Classify nodes, saving one full LLM round-trip.
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o-mini
+            mode: chat
+            completion_params:
+              temperature: 0.0
+              max_tokens: 400
+          context:
+            enabled: false
+          vision:
+            enabled: true
+            configs:
+              detail: high
+              variable_selector:
+                - sys
+                - files
+          prompt_template:
+            - id: sys_router
+              role: system
+              text: >-
+                You are an intent classifier AND item identifier for a
+                patient health companion. Do both steps in one pass.
+
+
+                ── STEP 1: CLASSIFY INTENT ──
+
+                "simulation" — The user mentions a SPECIFIC food, drink,
+                snack, supplement, or medication they consumed or plan to
+                consume. They want to simulate the health impact.
+
+                "general_chat" — The user asks a general health question,
+                wants biomarkers, trends, medication list, health advice, or
+                any conversational query that does NOT involve simulating a
+                specific intake item.
+
+                Examples of general_chat:
+                - "What's my blood pressure?" / "Show my health trends"
+                - "What medications am I on?" / "How's my glucose?"
+                - "What should I eat for dinner?" / "How can I sleep better?"
+                - "Tell me about my allergies" / "My health status"
+
+                Examples of simulation:
+                - "I just ate a pepperoni pizza"
+                - "What happens if I take ibuprofen 400mg?"
+                - "I had 2 cups of coffee" / "Analyze this food"
+                - "Check interaction for metformin"
+
+
+                ── STEP 2: IF SIMULATION → IDENTIFY THE ITEM ──
+
+                If intent is "simulation", also identify:
+                - item_name: What was consumed
+                - category: food | snack | beverage | supplement | medication
+                - search_term: Best API search query (plain name, no brand)
+                - quantity: Amount if mentioned, else null
+                - dosage: Dose if medication, else null
+
+
+                ── IMAGE HANDLING ──
+
+                If an image URL is provided, ANALYZE its visual content:
+                - Photo of food/drink → "simulation" + identify the food
+                - Photo of pill/medication bottle → "simulation" + identify
+                - Screenshot of chart/dashboard/text → "general_chat"
+                - No image or empty URL → decide based on text only
+
+                Do NOT blindly assume image = simulation. Look at what it shows.
+
+
+                ── OUTPUT (JSON only) ──
+
+                {
+                  "intent": "simulation" | "general_chat",
+                  "confidence": 0.0-1.0,
+                  "reason": "brief explanation",
+                  "item_name": "string or null",
+                  "category": "food|snack|beverage|supplement|medication|null",
+                  "search_term": "string or null",
+                  "quantity": "string or null",
+                  "dosage": "string or null"
+                }
+
+                For general_chat, set item fields to null.
+            - id: usr_router
+              role: user
+              text: >-
+                Query: {{#node_start.item_text#}}
+                Image: {{#node_start.item_image_url#}}
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 160
+        id: node_llm_router
+        position:
+          x: 380
+          y: 282
+        type: custom
+        width: 244
+
+      # ══════════════════════════════════════════════════════════════════════
+      # 3. CODE — Extract Intent + Classification
+      # ══════════════════════════════════════════════════════════════════════
+      - data:
+          title: Extract Intent & Item
+          desc: >-
+            Parse the merged router+classify LLM output. Extracts intent
+            routing AND item classification in one pass.
+          type: code
+          code_language: python3
+          code: |
+            import json
+            import re
+
+            def main(llm_output: str) -> dict:
+                try:
+                    parsed = json.loads(llm_output)
+                except Exception:
+                    match = re.search(r'\{[\s\S]*\}', llm_output)
+                    if match:
+                        try:
+                            parsed = json.loads(match.group())
+                        except Exception:
+                            parsed = {}
+                    else:
+                        parsed = {}
+
+                intent = parsed.get("intent", "general_chat").lower().strip()
+                if intent not in ("simulation", "general_chat"):
+                    intent = "general_chat"
+
+                return {
+                    "intent": intent,
+                    "confidence": float(parsed.get("confidence", 0.5)),
+                    "reason": parsed.get("reason", ""),
+                    "item_name": parsed.get("item_name") or "unknown",
+                    "category": parsed.get("category") or "food",
+                    "search_term": parsed.get("search_term") or parsed.get("item_name") or "",
+                    "quantity": parsed.get("quantity") or "",
+                    "dosage": parsed.get("dosage") or "",
+                }
+          variables:
+            - value_selector:
+                - node_llm_router
+                - text
+              variable: llm_output
+          outputs:
+            intent:
+              type: string
+              children: null
+            confidence:
+              type: number
+              children: null
+            reason:
+              type: string
+              children: null
+            item_name:
+              type: string
+              children: null
+            category:
+              type: string
+              children: null
+            search_term:
+              type: string
+              children: null
+            quantity:
+              type: string
+              children: null
+            dosage:
+              type: string
+              children: null
+        height: 160
+        id: node_code_router
+        position:
+          x: 680
+          y: 282
+        type: custom
+        width: 244
+
+      # ══════════════════════════════════════════════════════════════════════
+      # 4. IF/ELSE — Route by Intent (NEW)
+      # ══════════════════════════════════════════════════════════════════════
+      - data:
+          title: Needs Simulation?
+          desc: >-
+            Routes to the fast general-chat path or the full simulation
+            pipeline based on the intent classifier output.
+          type: if-else
+          cases:
+            - case_id: "true"
+              conditions:
+                - comparison_operator: contains
+                  id: cond_sim
+                  value: "simulation"
+                  variable_selector:
+                    - node_code_router
+                    - intent
+              logical_operator: and
+        height: 130
+        id: node_ifelse_intent
+        position:
+          x: 980
+          y: 282
+        type: custom
+        width: 244
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  PATH A — GENERAL CHAT (fast: 2 LLM calls, 0 API calls)
+      # ════════════════════════════════════════════════════════════════════════
+
+      # ── A1. KNOWLEDGE RETRIEVAL — Patient Profile (General Path) ────────
+      # Source: knowledge-base.md (uploaded to Dify KB named "knowledge-base")
+      - data:
+          title: Retrieving your health profile...
+          desc: >-
+            Queries the "knowledge-base" Knowledge Base by patient_id to pull
+            demographics, biomarkers, conditions, allergies, medications.
+            Source file: src/data/knowledge-base.md
           type: knowledge-retrieval
           query_variable_selector:
             - node_start
             - patient_id
           dataset_ids:
-            - "REPLACE_WITH_YOUR_KB_ID"
+            - "knowledge-base"
           retrieval_mode: multiple
           multiple_retrieval_config:
             top_k: 5
@@ -128,298 +442,42 @@ workflow:
               completion_params:
                 temperature: 0.2
         height: 120
-        id: node_kb_patient
-        position:
-          x: 380
-          y: 282
-        type: custom
-        width: 244
-
-      # ── 3. LLM — Parse & Classify Item ──────────────────────────────────
-      - data:
-          title: Parse & Classify Intake Item
-          desc: >-
-            Determines what the patient consumed or is taking. Classifies as
-            food, snack, beverage, supplement, or medication.
-          type: llm
-          model:
-            provider: openai
-            name: gpt-4o
-            mode: chat
-            completion_params:
-              temperature: 0.1
-              max_tokens: 500
-          context:
-            enabled: false
-          vision:
-            enabled: true
-          prompt_template:
-            - id: sys_classify
-              role: system
-              text: >-
-                You are a food/medication identification system. Given the
-                user's description (and optional image), identify the item and
-                classify it.
-
-                Return ONLY valid JSON:
-                {
-                  "item_name": "string",
-                  "category": "food | snack | beverage | supplement | medication",
-                  "quantity": "string or null",
-                  "dosage": "string or null",
-                  "search_term": "best USDA or FDA search term"
-                }
-            - id: usr_classify
-              role: user
-              text: >-
-                Item description: {{#node_start.item_text#}}
-                Image URL: {{#node_start.item_image_url#}}
-          variables: []
-          memory:
-            enabled: false
-        height: 200
-        id: node_llm_classify
-        position:
-          x: 680
-          y: 282
-        type: custom
-        width: 244
-
-      # ── 4. CODE — Extract Classification ────────────────────────────────
-      - data:
-          title: Extract Classification
-          desc: Parse the LLM classification JSON and extract category for routing.
-          type: code
-          code_language: python3
-          code: |
-            import json
-
-            def main(llm_output: str) -> dict:
-                try:
-                    parsed = json.loads(llm_output)
-                except Exception:
-                    # Try to extract JSON from markdown code blocks
-                    import re
-                    match = re.search(r'\{[^}]+\}', llm_output, re.DOTALL)
-                    if match:
-                        parsed = json.loads(match.group())
-                    else:
-                        parsed = {
-                            "item_name": llm_output.strip(),
-                            "category": "food",
-                            "search_term": llm_output.strip()
-                        }
-                return {
-                    "item_name": parsed.get("item_name", "unknown"),
-                    "category": parsed.get("category", "food"),
-                    "quantity": parsed.get("quantity", ""),
-                    "dosage": parsed.get("dosage", ""),
-                    "search_term": parsed.get("search_term", parsed.get("item_name", ""))
-                }
-          variables:
-            - value_selector:
-                - node_llm_classify
-                - text
-              variable: llm_output
-          outputs:
-            item_name:
-              type: string
-              children: null
-            category:
-              type: string
-              children: null
-            quantity:
-              type: string
-              children: null
-            dosage:
-              type: string
-              children: null
-            search_term:
-              type: string
-              children: null
-        height: 160
-        id: node_code_classify
-        position:
-          x: 980
-          y: 282
-        type: custom
-        width: 244
-
-      # ── 5. IF/ELSE — Route by Category ──────────────────────────────────
-      - data:
-          title: Food or Medication?
-          desc: Routes to USDA API for food items or OpenFDA for medications.
-          type: if-else
-          conditions:
-            - comparison_operator: in
-              id: cond_food
-              value: "food,snack,beverage"
-              variable_selector:
-                - node_code_classify
-                - category
-          logical_operator: and
-        height: 130
-        id: node_ifelse
+        id: node_kb_general
         position:
           x: 1280
-          y: 282
+          y: 80
         type: custom
         width: 244
 
-      # ── 6a. HTTP — USDA FoodData Central (food branch) ──────────────────
+      # ── A2. LLM — Direct Answer (General Path) ─────────────────────────
       - data:
-          title: USDA Nutrition Lookup
+          title: Answering your health question...
           desc: >-
-            Fetches nutritional data from USDA FoodData Central for the
-            identified food item.
-          type: http-request
-          method: get
-          url: "https://api.nal.usda.gov/fdc/v1/foods/search?query={{#node_code_classify.search_term#}}&pageSize=3&api_key={{#env.USDA_API_KEY#}}"
-          authorization:
-            type: no-auth
-            config: null
-          headers: ""
-          params: ""
-          body:
-            type: none
-            data: ""
-          timeout:
-            connect: 10
-            read: 30
-            write: 10
-          retry:
-            max_retries: 3
-            retry_interval: 1000
-          variables: []
-        height: 140
-        id: node_http_usda
-        position:
-          x: 1580
-          y: 160
-        type: custom
-        width: 244
-
-      # ── 6a-bis. HTTP — Open Food Facts / Nutri-Score (food branch) ─────
-      - data:
-          title: Open Food Facts (Nutri-Score)
-          desc: >-
-            Fetches Nutri-Score grade (A/B/C/D/E), nutriscore numeric score,
-            and per-100g nutriments from the Open Food Facts open database.
-            No API key required.
-          type: http-request
-          method: get
-          url: "https://world.openfoodfacts.org/api/v2/search?search_terms={{#node_code_classify.search_term#}}&fields=product_name,nutriscore_grade,nutriscore_score,nova_group,ecoscore_grade,nutriments&page_size=3"
-          authorization:
-            type: no-auth
-            config: null
-          headers: "User-Agent: DigiTwin/1.0 (hackathon demo)"
-          params: ""
-          body:
-            type: none
-            data: ""
-          timeout:
-            connect: 10
-            read: 30
-            write: 10
-          retry:
-            max_retries: 3
-            retry_interval: 1000
-          variables: []
-        height: 140
-        id: node_http_off
-        position:
-          x: 1580
-          y: 30
-        type: custom
-        width: 244
-
-      # ── 6b. HTTP — OpenFDA Drug Lookup (medication branch) ──────────────
-      - data:
-          title: OpenFDA Drug Lookup
-          desc: >-
-            Fetches drug label data, interactions, and warnings from OpenFDA
-            for medication items.
-          type: http-request
-          method: get
-          url: "https://api.fda.gov/drug/label.json?search=openfda.brand_name:\"{{#node_code_classify.search_term#}}\"&limit=1"
-          authorization:
-            type: no-auth
-            config: null
-          headers: ""
-          params: ""
-          body:
-            type: none
-            data: ""
-          timeout:
-            connect: 10
-            read: 30
-            write: 10
-          retry:
-            max_retries: 3
-            retry_interval: 1000
-          variables: []
-        height: 140
-        id: node_http_fda
-        position:
-          x: 1580
-          y: 420
-        type: custom
-        width: 244
-
-      # ── 7. VARIABLE AGGREGATOR — Merge API Results ──────────────────────
-      - data:
-          title: Merge API Results
-          desc: >-
-            Combines results from USDA + Open Food Facts (food branch) or
-            OpenFDA (medication branch) into a single variable.
-          type: variable-aggregator
-          advanced_settings:
-            group_enabled: false
-          output_type: string
-          variables:
-            - - node_http_usda
-              - body
-            - - node_http_off
-              - body
-            - - node_http_fda
-              - body
-        height: 100
-        id: node_merge_api
-        position:
-          x: 1880
-          y: 282
-        type: custom
-        width: 244
-
-      # ── 8. LLM — Cross-Reference Patient Profile ───────────────────────
-      - data:
-          title: Cross-Reference with Patient Profile
-          desc: >-
-            Analyzes the item against the patient's full clinical profile:
-            drug interactions, allergy checks, pharmacogenomic metabolism,
-            dietary restrictions, disease risk amplification.
+            Answers general health questions using the patient's clinical
+            profile. Provides personalized, conversational responses without
+            running the simulation pipeline.
           type: llm
           model:
             provider: openai
             name: gpt-4o
             mode: chat
             completion_params:
-              temperature: 0.2
-              max_tokens: 2000
+              temperature: 0.4
+              max_tokens: 1500
           context:
             enabled: true
             variable_selector:
-              - node_kb_patient
+              - node_kb_general
               - result
           vision:
             enabled: false
           prompt_template:
-            - id: sys_crossref
+            - id: sys_direct
               role: system
               text: >-
-                You are a clinical cross-reference engine for the DigiTwin
-                biological digital twin platform. You have the patient's full
-                clinical profile from the knowledge base.
+                You are the Health Companion for DigiTwin, an AI-powered
+                biological digital twin platform. You have access to the
+                patient's full clinical profile.
 
 
                 PATIENT PROFILE (from Knowledge Base):
@@ -427,19 +485,630 @@ workflow:
                 {{#context#}}
 
 
-                ITEM IDENTIFIED: {{#node_code_classify.item_name#}}
+                INSTRUCTIONS:
 
-                CATEGORY: {{#node_code_classify.category#}}
+                - Answer the patient's question using their actual data
 
-                QUANTITY/DOSAGE: {{#node_code_classify.quantity#}} {{#node_code_classify.dosage#}}
+                - Be conversational, empathetic, and educational
+
+                - Reference specific biomarker values, trends, and conditions
+
+                - Provide actionable health insights when relevant
+
+                - If they ask about medications, list their current meds with
+                  purposes
+
+                - If they ask about trends, reference their longitudinal data
+
+                - If they ask what to eat/avoid, use their conditions, allergies,
+                  and dietary restrictions to personalize advice
+
+                - Do NOT run simulations — just provide informative answers
+
+                - If the question would benefit from a food/medication
+                  simulation, suggest they try: "Analyze [food/med name]"
 
 
-                API DATA (nutritional or pharmaceutical):
+                Return a JSON response:
+
+                {
+                  "reply": "Your conversational response (use markdown for formatting)",
+                  "suggestions": ["2-4 follow-up questions or actions the user might want"],
+                  "data_referenced": ["list of data points from their profile you used"]
+                }
+            - id: usr_direct
+              role: user
+              text: >-
+                Patient {{#node_start.patient_id#}} asks:
+                {{#node_start.item_text#}}
+          variables: []
+          memory:
+            enabled: false
+            window:
+              enabled: false
+              size: 10
+        height: 240
+        id: node_llm_direct
+        position:
+          x: 1580
+          y: 30
+        type: custom
+        width: 244
+
+      # ── A3. ANSWER — General Chat Response ──────────────────────────────
+      - data:
+          title: Return Chat Response
+          type: answer
+          answer: "{{#node_llm_direct.text#}}"
+        height: 80
+        id: node_answer_general
+        position:
+          x: 1880
+          y: 80
+        type: custom
+        width: 244
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  PATH B — SIMULATION (full: 3 LLM calls + API lookups)
+      # ════════════════════════════════════════════════════════════════════════
+
+      # ── B1. KNOWLEDGE RETRIEVAL — Patient Profile (Simulation Path) ─────
+      # Source: knowledge-base.md (uploaded to Dify KB named "knowledge-base")
+      - data:
+          title: Loading patient clinical profile...
+          desc: >-
+            Queries the "knowledge-base" Knowledge Base by patient_id to pull
+            full clinical profile: biomarkers, pharmacogenomics, conditions,
+            allergies, medications, lifestyle, and longitudinal data.
+            Source file: src/data/knowledge-base.md
+          type: knowledge-retrieval
+          query_variable_selector:
+            - node_start
+            - patient_id
+          dataset_ids:
+            - "knowledge-base"
+          retrieval_mode: multiple
+          multiple_retrieval_config:
+            top_k: 5
+            score_threshold: 0.3
+            reranking_enable: true
+            reranking_model:
+              provider: ""
+              model: ""
+          single_retrieval_config:
+            model:
+              provider: openai
+              name: gpt-4o
+              mode: chat
+              completion_params:
+                temperature: 0.2
+        height: 120
+        id: node_kb_sim
+        position:
+          x: 1280
+          y: 480
+        type: custom
+        width: 244
+
+      # ── B2. IF/ELSE — Route by Category ────────────────────────────────
+      - data:
+          title: Food or Medication?
+          desc: Routes to USDA for food items or OpenFDA for medications.
+          type: if-else
+          cases:
+            - case_id: "true"
+              conditions:
+                - comparison_operator: contains
+                  id: cond_food
+                  value: "food"
+                  variable_selector:
+                    - node_code_router
+                    - category
+                - comparison_operator: contains
+                  id: cond_snack
+                  value: "snack"
+                  variable_selector:
+                    - node_code_router
+                    - category
+                - comparison_operator: contains
+                  id: cond_beverage
+                  value: "beverage"
+                  variable_selector:
+                    - node_code_router
+                    - category
+              logical_operator: or
+        height: 130
+        id: node_ifelse_category
+        position:
+          x: 2180
+          y: 480
+        type: custom
+        width: 244
+
+      # ── B5a. HTTP — USDA FoodData Central (food branch) ────────────────
+      - data:
+          title: Looking up nutrition data...
+          desc: >-
+            Fetches nutritional data from USDA FoodData Central for the
+            identified food item.
+          type: http-request
+          method: get
+          url: "https://api.nal.usda.gov/fdc/v1/foods/search?query={{#node_code_router.search_term#}}&pageSize=3&api_key={{#env.USDA_API_KEY#}}"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 3
+            retry_interval: 1000
+          error_strategy: default-value
+          default_value:
+            - id: body
+              key: body
+              name: body
+              type: string
+              value: '{"foods": []}'
+            - id: status_code
+              key: status_code
+              name: status_code
+              type: number
+              value: 0
+          variables: []
+        height: 140
+        id: node_http_usda
+        position:
+          x: 2480
+          y: 360
+        type: custom
+        width: 244
+
+      # ── B5b-pre. CODE — Map non-US brand names to generic names ───────
+      # "Doliprane" → "acetaminophen", "Efferalgan" → "acetaminophen", etc.
+      # This ensures OpenFDA (US-only database) can find the drug.
+      - data:
+          title: Mapping drug brand to generic name...
+          desc: >-
+            Maps common non-US (especially French/European) brand names to
+            their FDA-registered generic equivalents. OpenFDA only contains
+            US-registered drugs, so non-US brands like Doliprane, Efferalgan,
+            Spasfon etc. will 404 without this mapping.
+          type: code
+          code_language: python3
+          code: |
+            def main(search_term: str, item_name: str) -> dict:
+                # Map of non-US brand names → FDA generic names
+                brand_to_generic = {
+                    # Paracetamol / Acetaminophen brands
+                    "doliprane": "acetaminophen",
+                    "efferalgan": "acetaminophen",
+                    "dafalgan": "acetaminophen",
+                    "panadol": "acetaminophen",
+                    "tylenol": "acetaminophen",
+                    "paracetamol": "acetaminophen",
+                    "paracetamole": "acetaminophen",
+                    # NSAIDs
+                    "nurofen": "ibuprofen",
+                    "advil": "ibuprofen",
+                    "brufen": "ibuprofen",
+                    "voltaren": "diclofenac",
+                    "voltarene": "diclofenac",
+                    # GI
+                    "spasfon": "phloroglucinol",
+                    "smecta": "diosmectite",
+                    "imodium": "loperamide",
+                    "gaviscon": "alginate",
+                    "maalox": "aluminum hydroxide",
+                    # Allergy
+                    "zyrtec": "cetirizine",
+                    "aerius": "desloratadine",
+                    "clarityne": "loratadine",
+                    "claritin": "loratadine",
+                    "xyzall": "levocetirizine",
+                    # Antibiotics
+                    "augmentin": "amoxicillin clavulanate",
+                    "clamoxyl": "amoxicillin",
+                    "amoxil": "amoxicillin",
+                    "zithromax": "azithromycin",
+                    # Cardiovascular
+                    "tahor": "atorvastatin",
+                    "lipitor": "atorvastatin",
+                    "crestor": "rosuvastatin",
+                    # Diabetes
+                    "glucophage": "metformin",
+                    "stagid": "metformin",
+                    "januvia": "sitagliptin",
+                    # Other common
+                    "lexomil": "bromazepam",
+                    "xanax": "alprazolam",
+                    "stilnox": "zolpidem",
+                    "ambien": "zolpidem",
+                    "prozac": "fluoxetine",
+                    "deroxat": "paroxetine",
+                }
+
+                # Normalize: lowercase, strip dosage numbers
+                key = search_term.lower().strip()
+                # Remove trailing dosage like "1000mg", "500 mg", etc.
+                import re
+                key = re.sub(r'\s*\d+\s*(mg|g|ml|mcg|iu)\b.*', '', key).strip()
+
+                generic = brand_to_generic.get(key, search_term)
+                mapped = key != generic.lower()
+
+                return {
+                    "fda_search_term": generic,
+                    "original_term": search_term,
+                    "was_mapped": "yes" if mapped else "no",
+                }
+          variables:
+            - value_selector:
+                - node_code_router
+                - search_term
+              variable: search_term
+            - value_selector:
+                - node_code_router
+                - item_name
+              variable: item_name
+          outputs:
+            fda_search_term:
+              type: string
+              children: null
+            original_term:
+              type: string
+              children: null
+            was_mapped:
+              type: string
+              children: null
+        height: 160
+        id: node_code_brand_map
+        position:
+          x: 2480
+          y: 540
+        type: custom
+        width: 244
+
+      # ── B5b. HTTP — OpenFDA Drug Lookup (medication branch) ────────────
+      - data:
+          title: Looking up drug information...
+          desc: >-
+            Fetches drug label data, interactions, and warnings from OpenFDA
+            for medication items. Uses the mapped generic name from the brand
+            mapping node to handle non-US drug brands.
+          type: http-request
+          method: get
+          url: "https://api.fda.gov/drug/label.json?search=(openfda.brand_name:\"{{#node_code_brand_map.fda_search_term#}}\"+openfda.generic_name:\"{{#node_code_brand_map.fda_search_term#}}\")&limit=3"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 3
+            retry_interval: 1000
+          error_strategy: default-value
+          default_value:
+            - id: body
+              key: body
+              name: body
+              type: string
+              value: '{"results": []}'
+            - id: status_code
+              key: status_code
+              name: status_code
+              type: number
+              value: 0
+          variables: []
+        height: 140
+        id: node_http_fda
+        position:
+          x: 2780
+          y: 600
+        type: custom
+        width: 244
+
+      # ── B5c. CODE — Check USDA Response (food branch) ─────────────────
+      - data:
+          title: Check USDA Response
+          desc: >-
+            Validates the USDA API response. If valid food data is returned,
+            passes it through. Otherwise flags for web search fallback.
+          type: code
+          code_language: python3
+          code: |
+            import json
+
+            def main(http_body: str) -> dict:
+                try:
+                    data = json.loads(http_body)
+                    if isinstance(data, dict) and data.get("foods") and len(data["foods"]) > 0:
+                        return {"success": "yes", "api_data": http_body}
+                except Exception:
+                    pass
+                return {"success": "no", "api_data": ""}
+          variables:
+            - value_selector:
+                - node_http_usda
+                - body
+              variable: http_body
+          outputs:
+            success:
+              type: string
+              children: null
+            api_data:
+              type: string
+              children: null
+        height: 120
+        id: node_code_check_food
+        position:
+          x: 2780
+          y: 300
+        type: custom
+        width: 244
+
+      # ── B5d. IF/ELSE — USDA OK? (food branch) ────────────────────────
+      - data:
+          title: USDA OK?
+          desc: >-
+            If USDA returned valid data, proceed to merge. Otherwise fall
+            back to web search.
+          type: if-else
+          cases:
+            - case_id: "true"
+              conditions:
+                - comparison_operator: contains
+                  id: cond_usda_ok
+                  value: "yes"
+                  variable_selector:
+                    - node_code_check_food
+                    - success
+              logical_operator: and
+        height: 130
+        id: node_ifelse_food_ok
+        position:
+          x: 3080
+          y: 300
+        type: custom
+        width: 244
+
+      # ── B5e. HTTP — Web Search Fallback (food branch) ─────────────────
+      - data:
+          title: Web Search (Food Fallback)
+          desc: >-
+            Fallback web search when USDA API fails or returns no results.
+            Uses DuckDuckGo Instant Answer API (free, no key required).
+            Replace this URL with your preferred search API if needed.
+          type: http-request
+          method: get
+          url: "https://api.duckduckgo.com/?q={{#node_code_router.search_term#}}+nutrition+facts+calories+protein+carbs+fat&format=json&no_html=1&skip_disambig=1"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 2
+            retry_interval: 1000
+          variables: []
+        height: 140
+        id: node_http_search_food
+        position:
+          x: 3380
+          y: 180
+        type: custom
+        width: 244
+
+      # ── B5f. CODE — Check OpenFDA Response (medication branch) ────────
+      - data:
+          title: Check OpenFDA Response
+          desc: >-
+            Validates the OpenFDA API response. If valid drug data is returned,
+            passes it through. Otherwise flags for web search fallback.
+          type: code
+          code_language: python3
+          code: |
+            import json
+
+            def main(http_body: str) -> dict:
+                try:
+                    data = json.loads(http_body)
+                    if isinstance(data, dict) and data.get("results") and len(data["results"]) > 0:
+                        return {"success": "yes", "api_data": http_body}
+                except Exception:
+                    pass
+                return {"success": "no", "api_data": ""}
+          variables:
+            - value_selector:
+                - node_http_fda
+                - body
+              variable: http_body
+          outputs:
+            success:
+              type: string
+              children: null
+            api_data:
+              type: string
+              children: null
+        height: 120
+        id: node_code_check_med
+        position:
+          x: 2780
+          y: 650
+        type: custom
+        width: 244
+
+      # ── B5g. IF/ELSE — OpenFDA OK? (medication branch) ───────────────
+      - data:
+          title: OpenFDA OK?
+          desc: >-
+            If OpenFDA returned valid data, proceed to merge. Otherwise fall
+            back to web search.
+          type: if-else
+          cases:
+            - case_id: "true"
+              conditions:
+                - comparison_operator: contains
+                  id: cond_fda_ok
+                  value: "yes"
+                  variable_selector:
+                    - node_code_check_med
+                    - success
+              logical_operator: and
+        height: 130
+        id: node_ifelse_med_ok
+        position:
+          x: 3080
+          y: 650
+        type: custom
+        width: 244
+
+      # ── B5h. HTTP — Web Search Fallback (medication branch) ───────────
+      - data:
+          title: Web Search (Drug Fallback)
+          desc: >-
+            Fallback web search when OpenFDA API fails or returns no results.
+            Uses DuckDuckGo Instant Answer API (free, no key required).
+            Replace this URL with your preferred search API if needed.
+          type: http-request
+          method: get
+          url: "https://api.duckduckgo.com/?q={{#node_code_router.search_term#}}+drug+interactions+side+effects+warnings&format=json&no_html=1&skip_disambig=1"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 2
+            retry_interval: 1000
+          variables: []
+        height: 140
+        id: node_http_search_med
+        position:
+          x: 3380
+          y: 780
+        type: custom
+        width: 244
+
+      # ── B6. VARIABLE AGGREGATOR — Merge API Results ────────────────────
+      - data:
+          title: Merge API Results
+          desc: >-
+            Combines results from USDA or its web search fallback (food branch)
+            or OpenFDA or its web search fallback (medication branch) into a
+            single variable for downstream analysis.
+          type: variable-aggregator
+          advanced_settings:
+            group_enabled: false
+            groups: []
+          output_type: string
+          variables:
+            - - node_code_check_food
+              - api_data
+            - - node_http_search_food
+              - body
+            - - node_code_check_med
+              - api_data
+            - - node_http_search_med
+              - body
+        height: 100
+        id: node_merge_api
+        position:
+          x: 3680
+          y: 480
+        type: custom
+        width: 244
+
+      # ══════════════════════════════════════════════════════════════════════
+      # B7. LLM — Combined Analysis + Simulation (MERGED — was 2 nodes)
+      #
+      # This node replaces the old separate "Cross-Reference" and
+      # "Simulate Biomarker Impact" nodes. Combining them into one LLM
+      # call saves a full round-trip (~3-5s).
+      # ══════════════════════════════════════════════════════════════════════
+      - data:
+          title: Simulating health impact on your DigiTwin...
+          desc: >-
+            Combined node: cross-references the item against the patient's
+            clinical profile (drug interactions, allergies, pharmacogenomics,
+            dietary restrictions) AND generates time-series biomarker
+            projections — all in a single LLM call.
+          type: llm
+          model:
+            provider: openai
+            name: gpt-4o
+            mode: chat
+            completion_params:
+              temperature: 0.25
+              max_tokens: 4000
+          context:
+            enabled: true
+            variable_selector:
+              - node_kb_sim
+              - result
+          vision:
+            enabled: false
+          prompt_template:
+            - id: sys_analysis_sim
+              role: system
+              text: >-
+                You are the clinical analysis and biomarker simulation engine
+                for the DigiTwin biological digital twin platform. You will
+                perform TWO tasks in a single pass:
+
+                (A) Cross-reference the intake item against the patient's profile
+                (B) Generate biomarker projections over time
+
+
+                ═══ PATIENT PROFILE (from Knowledge Base) ═══
+
+                {{#context#}}
+
+
+                ═══ ITEM IDENTIFIED ═══
+
+                Name: {{#node_code_router.item_name#}}
+
+                Category: {{#node_code_router.category#}}
+
+                Quantity/Dosage: {{#node_code_router.quantity#}} {{#node_code_router.dosage#}}
+
+
+                ═══ API DATA (nutritional or pharmaceutical) ═══
 
                 {{#node_merge_api.output#}}
 
 
-                Perform these checks and return JSON:
+                ═══ TASK A: CROSS-REFERENCE ═══
+
+                Perform these safety checks:
 
                 1. **Drug-drug interactions** with current medications
 
@@ -448,37 +1117,91 @@ workflow:
 
                 3. **Pharmacogenomic interactions**:
                    - Check CYP2D6, CYP2C19, CYP3A4, SLCO1B1, VKORC1 metabolizer status
-                   - Flag if item is metabolized by an enzyme the patient has variant alleles for
                    - Poor metabolizer → accumulation risk
                    - Rapid/ultrarapid → subtherapeutic levels
 
-                4. **Disease risk amplification** (e.g. high-sugar food + prediabetes, high-sodium + HTN)
+                4. **Disease risk amplification** (e.g. high-sugar food + prediabetes)
 
-                5. **Dietary restriction violations** (lactose, caffeine sensitivity, etc.)
+                5. **Dietary restriction violations** (lactose, caffeine sensitivity)
 
-                6. **Trait marker flags** (lactose intolerance, caffeine slow metabolizer, alcohol flush)
+                6. **Trait marker flags** (lactose intolerance, caffeine slow metabolizer)
 
-
-                7. **Nutri-Score**: Extract the nutriscore_grade (A/B/C/D/E) and
-                nutriscore_score (numeric, lower = healthier) from the Open Food
-                Facts API data. If the food branch was taken the OFF response
-                will be in the API DATA. Map: A = excellent, B = good,
-                C = moderate, D = poor, E = unhealthy. For medications or when
-                OFF returns no match, set nutri_score to null.
+                Note: API data may come from a web search fallback if the primary
+                API (USDA or OpenFDA) failed. Adapt your analysis accordingly.
 
 
-                Return ONLY valid JSON:
+                ═══ TASK B½: ACTIVITY SUGGESTIONS (food items only) ═══
+
+                If the item is a food/snack/beverage, suggest physical activities
+                the patient could do to burn off the estimated calories. Tailor
+                suggestions to the patient's:
+                - Current fitness level and lifestyle (from profile)
+                - Medical conditions and physical limitations
+                - Age and BMI
+
+                For each activity, provide:
+                - activity_name: e.g. "Brisk Walking", "Cycling", "Swimming"
+                - duration_minutes: how long to burn those calories
+                - calories_burned: should roughly match the food's calorie count
+                - intensity: "light" | "moderate" | "vigorous"
+                - note: any patient-specific consideration (e.g. "gentle on joints")
+
+                Suggest 3-5 activities ranging from light to vigorous intensity.
+                If the item is a medication or supplement, set activity_suggestions
+                to null.
+
+
+                ═══ TASK B: BIOMARKER SIMULATION ═══
+
+                CRITICAL: You MUST first READ the patient profile above and
+                EXTRACT their current biomarker values. Do NOT guess or use
+                generic population averages. Use the EXACT numbers from the
+                Knowledge Base data (e.g. fasting glucose, HbA1c, CRP, heart
+                rate, HRV, blood pressure, health score, weight, BMI, etc.).
+
+                Step B1 — Extract current readings from the patient profile:
+                - fasting_glucose (from latestLabs or biomarkers section)
+                - hba1c (from latestLabs)
+                - crp (from latestLabs or biomarkers)
+                - resting_heart_rate (from vitals or biomarkers)
+                - hrv_ms (from vitals or biomarkers)
+                - systolic, diastolic (from vitals or biomarkers)
+                - overall_health_score (from biomarkers)
+                - weight_kg, bmi (from demographics or vitals)
+                - any other relevant biomarkers present in the profile
+
+                If a value is missing from the profile, state "not available"
+                in baseline_biomarkers and use a reasonable clinical estimate.
+
+                Step B2 — Project changes from THOSE EXACT baselines:
+
+                Simulation window: {{#node_start.simulation_window#}}
+
+                Timepoints: [0h, 1h, 2h, 4h, 8h, 24h, 3d, 7d, 14d, 30d]
+                (If "acute" → focus 0h–24h. If "extended" → 3d–30d. If "both" → all.)
+
+                Project these biomarkers:
+                - glucose_mg_dl, crp_mg_l, resting_heart_rate, hrv_ms
+                - systolic, diastolic, overall_health_delta (-20 to +10)
+
+                Rules:
+                - projections[0h] MUST equal the patient's current baseline value
+                - Factor in CYP metabolizer status for medication kinetics
+                - Use labHistory/longitudinal data for realistic change rates
+                - Account for current medications buffering/amplifying effects
+                - Food: acute glucose spike + return to baseline
+                - Medications: pharmacokinetic ramp-up curve
+
+
+                ═══ OUTPUT FORMAT ═══
+
+                Return ONLY valid JSON combining both tasks:
 
                 {
                   "patient_id": "string",
                   "patient_name": "string",
                   "item_identified": "string",
                   "item_category": "string",
-                  "nutri_score": {
-                    "grade": "A | B | C | D | E",
-                    "numeric_score": number,
-                    "label": "Excellent | Good | Moderate | Poor | Unhealthy"
-                  } or null,
                   "nutritional_or_pharma_data": {
                     "calories": number or null,
                     "protein_g": number or null,
@@ -501,122 +1224,17 @@ workflow:
                     }
                   ],
                   "baseline_biomarkers": {
-                    "fasting_glucose": number,
-                    "hba1c": number,
-                    "crp": number,
-                    "resting_heart_rate": number,
-                    "hrv_ms": number,
-                    "systolic": number,
-                    "diastolic": number,
-                    "overall_health_score": number
-                  }
-                }
-            - id: usr_crossref
-              role: user
-              text: >-
-                Analyze the intake item for patient {{#node_start.patient_id#}}
-                and produce the cross-reference report.
-          variables: []
-          memory:
-            enabled: false
-        height: 300
-        id: node_llm_crossref
-        position:
-          x: 2180
-          y: 200
-        type: custom
-        width: 244
-
-      # ── 9. LLM — Biomarker Simulation ──────────────────────────────────
-      - data:
-          title: Simulate Biomarker Impact
-          desc: >-
-            Generates time-series biomarker projections grounded in the
-            patient's actual baseline values, factoring in pharmacogenomics,
-            current medications, and longitudinal trends.
-          type: llm
-          model:
-            provider: openai
-            name: gpt-4o
-            mode: chat
-            completion_params:
-              temperature: 0.3
-              max_tokens: 3000
-          context:
-            enabled: true
-            variable_selector:
-              - node_kb_patient
-              - result
-          vision:
-            enabled: false
-          prompt_template:
-            - id: sys_sim
-              role: system
-              text: >-
-                You are a biomarker simulation engine for the DigiTwin
-                biological digital twin platform.
-
-
-                PATIENT CONTEXT (from Knowledge Base):
-
-                {{#context#}}
-
-
-                CROSS-REFERENCE ANALYSIS:
-
-                {{#node_llm_crossref.text#}}
-
-
-                SIMULATION WINDOW: {{#node_start.simulation_window#}}
-
-
-                Using the patient's ACTUAL baseline biomarker values from the
-                cross-reference report, generate a time-series simulation.
-
-
-                Timepoints: [0h, 1h, 2h, 4h, 8h, 24h, 3d, 7d, 14d, 30d]
-
-                (If simulation_window is "acute", focus on 0h–24h.
-                 If "extended", focus on 3d–30d. If "both", include all.)
-
-
-                Biomarkers to project (start from the patient's real values):
-
-                - glucose_mg_dl (use patient's fasting glucose as 0h baseline)
-
-                - hba1c_percent (only changes at 14d+ timepoints)
-
-                - crp_mg_l (from patient's inflammatory panel)
-
-                - resting_heart_rate
-
-                - hrv_ms
-
-                - systolic / diastolic
-
-                - energy_level (0-100, derived from fitness + sleep scores)
-
-                - overall_health_delta (-20 to +10)
-
-
-                Rules:
-
-                - All values MUST start from the patient's actual baselines
-
-                - Factor in CYP metabolizer status for medication onset/duration
-
-                - Use labHistory trajectory for realistic change rates
-
-                - Account for current medications buffering/amplifying effects
-
-                - For food: acute glucose spike + return to baseline pattern
-
-                - For medications: pharmacokinetic ramp-up curve
-
-
-                Return ONLY valid JSON:
-
-                {
+                    "fasting_glucose": "EXACT value from patient KB",
+                    "hba1c": "EXACT value from patient KB",
+                    "crp": "EXACT value from patient KB",
+                    "resting_heart_rate": "EXACT value from patient KB",
+                    "hrv_ms": "EXACT value from patient KB",
+                    "systolic": "EXACT value from patient KB",
+                    "diastolic": "EXACT value from patient KB",
+                    "overall_health_score": "EXACT value from patient KB",
+                    "weight_kg": "from patient KB if available",
+                    "bmi": "from patient KB if available"
+                  },
                   "simulation": {
                     "timepoints": ["0h", "1h", "2h", "4h", "8h", "24h", "3d", "7d", "14d", "30d"],
                     "projections": {
@@ -637,35 +1255,46 @@ workflow:
                       "overall": number
                     }
                   },
-                  "text_summary": "3-5 sentence summary personalized to this patient",
+                  "activity_suggestions": [
+                    {
+                      "activity_name": "e.g. Brisk Walking",
+                      "duration_minutes": "number",
+                      "calories_burned": "number",
+                      "intensity": "light | moderate | vigorous",
+                      "note": "patient-specific consideration or null"
+                    }
+                  ] or null,
+                  "text_summary": "3-5 sentence summary that MUST reference the patient's current values AND mention activity options to offset calories (e.g. 'Your glucose is currently 105 mg/dL; this meal would spike it to ~145 mg/dL within 1 hour. A 30-min brisk walk could help burn off the ~350 calories.')",
                   "concern": "string or null",
                   "pharmacogenomic_note": "string or null",
                   "suggestions": ["string", "string", "string"]
                 }
-            - id: usr_sim
+            - id: usr_analysis_sim
               role: user
               text: >-
-                Generate the biomarker simulation for patient
+                Analyze and simulate the biomarker impact for patient
                 {{#node_start.patient_id#}} after intake of
-                {{#node_code_classify.item_name#}}.
+                {{#node_code_router.item_name#}}.
           variables: []
           memory:
             enabled: false
-        height: 300
-        id: node_llm_sim
+            window:
+              enabled: false
+              size: 10
+        height: 350
+        id: node_llm_analysis_sim
         position:
-          x: 2480
-          y: 200
+          x: 3980
+          y: 380
         type: custom
         width: 244
 
-      # ── 10. CODE — Validate & Assemble Final JSON ──────────────────────
+      # ── B8. CODE — Validate & Assemble Final JSON ──────────────────────
       - data:
-          title: Validate & Assemble Response
+          title: Validating biomarker projections...
           desc: >-
-            Merges cross-reference and simulation outputs, validates JSON
-            structure, clamps values to realistic ranges, and produces the
-            final response payload.
+            Validates the combined analysis+simulation JSON, clamps biomarker
+            values to realistic ranges, and produces the final response.
           type: code
           code_language: python3
           code: |
@@ -674,19 +1303,16 @@ workflow:
 
             def extract_json(text: str) -> dict:
                 """Extract JSON from LLM output, handling markdown code blocks."""
-                # Try direct parse
                 try:
                     return json.loads(text)
                 except Exception:
                     pass
-                # Try extracting from code block
                 match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
                 if match:
                     try:
                         return json.loads(match.group(1))
                     except Exception:
                         pass
-                # Try finding the outermost JSON object
                 depth = 0
                 start = -1
                 for i, c in enumerate(text):
@@ -708,25 +1334,21 @@ workflow:
                     return lo
                 return max(lo, min(hi, val))
 
-            def main(crossref_text: str, sim_text: str, patient_id: str) -> dict:
-                crossref = extract_json(crossref_text)
-                sim_data = extract_json(sim_text)
+            def main(analysis_sim_text: str, patient_id: str) -> dict:
+                data = extract_json(analysis_sim_text)
 
                 # Validate simulation projections
-                simulation = sim_data.get("simulation", {})
+                simulation = data.get("simulation", {})
                 projections = simulation.get("projections", {})
 
-                # Clamp glucose to realistic range
                 if "glucose_mg_dl" in projections:
                     projections["glucose_mg_dl"] = [
                         clamp(v, 50, 400) for v in projections["glucose_mg_dl"]
                     ]
-                # Clamp heart rate
                 if "resting_heart_rate" in projections:
                     projections["resting_heart_rate"] = [
                         clamp(v, 40, 180) for v in projections["resting_heart_rate"]
                     ]
-                # Clamp BP
                 if "systolic" in projections:
                     projections["systolic"] = [
                         clamp(v, 80, 220) for v in projections["systolic"]
@@ -736,45 +1358,27 @@ workflow:
                         clamp(v, 40, 140) for v in projections["diastolic"]
                     ]
 
-                # Validate nutri_score grade
-                nutri_score = crossref.get("nutri_score")
-                if nutri_score and isinstance(nutri_score, dict):
-                    grade = str(nutri_score.get("grade", "")).upper()
-                    if grade not in ("A", "B", "C", "D", "E"):
-                        grade = None
-                    label_map = {"A": "Excellent", "B": "Good", "C": "Moderate", "D": "Poor", "E": "Unhealthy"}
-                    nutri_score = {
-                        "grade": grade,
-                        "numeric_score": nutri_score.get("numeric_score"),
-                        "label": label_map.get(grade, "Unknown")
-                    } if grade else None
-
-                # Assemble final response
                 result = {
-                    "patient_id": crossref.get("patient_id", patient_id),
-                    "patient_name": crossref.get("patient_name", ""),
-                    "item_identified": crossref.get("item_identified", ""),
-                    "item_category": crossref.get("item_category", ""),
-                    "nutri_score": nutri_score,
-                    "nutritional_or_pharma_data": crossref.get("nutritional_or_pharma_data", {}),
-                    "patient_alerts": crossref.get("patient_alerts", []),
+                    "patient_id": data.get("patient_id", patient_id),
+                    "patient_name": data.get("patient_name", ""),
+                    "item_identified": data.get("item_identified", ""),
+                    "item_category": data.get("item_category", ""),
+                    "nutritional_or_pharma_data": data.get("nutritional_or_pharma_data", {}),
+                    "patient_alerts": data.get("patient_alerts", []),
                     "simulation": simulation,
-                    "text_summary": sim_data.get("text_summary", ""),
-                    "concern": sim_data.get("concern"),
-                    "pharmacogenomic_note": sim_data.get("pharmacogenomic_note"),
-                    "suggestions": sim_data.get("suggestions", [])
+                    "activity_suggestions": data.get("activity_suggestions"),
+                    "text_summary": data.get("text_summary", ""),
+                    "concern": data.get("concern"),
+                    "pharmacogenomic_note": data.get("pharmacogenomic_note"),
+                    "suggestions": data.get("suggestions", [])
                 }
 
                 return {"result": json.dumps(result, indent=2)}
           variables:
             - value_selector:
-                - node_llm_crossref
+                - node_llm_analysis_sim
                 - text
-              variable: crossref_text
-            - value_selector:
-                - node_llm_sim
-                - text
-              variable: sim_text
+              variable: analysis_sim_text
             - value_selector:
                 - node_start
                 - patient_id
@@ -786,123 +1390,210 @@ workflow:
         height: 180
         id: node_code_validate
         position:
-          x: 2780
-          y: 282
+          x: 4280
+          y: 480
         type: custom
         width: 244
 
-      # ── 11. ANSWER ──────────────────────────────────────────────────────
+      # ── B9. ANSWER — Simulation Result ─────────────────────────────────
       - data:
           title: Return Simulation Result
           type: answer
           answer: "{{#node_code_validate.result#}}"
         height: 80
-        id: node_answer
+        id: node_answer_sim
         position:
-          x: 3080
-          y: 282
+          x: 4580
+          y: 480
         type: custom
         width: 244
 
     # ── EDGES ──────────────────────────────────────────────────────────────
     edges:
-      - id: edge_start_to_kb
+      # Start → Router chain
+      - id: edge_start_to_router
         source: node_start
         sourceHandle: source
-        target: node_kb_patient
+        target: node_llm_router
         targetHandle: target
         type: custom
 
-      - id: edge_kb_to_classify
-        source: node_kb_patient
+      - id: edge_router_to_code
+        source: node_llm_router
         sourceHandle: source
-        target: node_llm_classify
+        target: node_code_router
         targetHandle: target
         type: custom
 
-      - id: edge_classify_to_code
-        source: node_llm_classify
+      - id: edge_code_to_ifelse_intent
+        source: node_code_router
         sourceHandle: source
-        target: node_code_classify
+        target: node_ifelse_intent
         targetHandle: target
         type: custom
 
-      - id: edge_code_to_ifelse
-        source: node_code_classify
+      # ── PATH A: General Chat (IF false — not simulation) ────────────────
+      - id: edge_intent_to_kb_general
+        source: node_ifelse_intent
+        sourceHandle: "false"
+        target: node_kb_general
+        targetHandle: target
+        type: custom
+
+      - id: edge_kb_general_to_direct
+        source: node_kb_general
         sourceHandle: source
-        target: node_ifelse
+        target: node_llm_direct
         targetHandle: target
         type: custom
 
-      # IF true (food/snack/beverage) → USDA + Open Food Facts in parallel
+      - id: edge_direct_to_answer_general
+        source: node_llm_direct
+        sourceHandle: source
+        target: node_answer_general
+        targetHandle: target
+        type: custom
+
+      # ── PATH B: Simulation (IF true — simulation needed) ────────────────
+      # KB retrieval and API calls run IN PARALLEL for speed.
+      # The merged router already classified the item, so we skip straight
+      # to category routing + KB retrieval simultaneously.
+
+      # Parallel branch 1: KB retrieval → feeds into Analysis+Sim
+      - id: edge_intent_to_kb_sim
+        source: node_ifelse_intent
+        sourceHandle: "true"
+        target: node_kb_sim
+        targetHandle: target
+        type: custom
+
+      - id: edge_kb_sim_to_analysis
+        source: node_kb_sim
+        sourceHandle: source
+        target: node_llm_analysis_sim
+        targetHandle: target
+        type: custom
+
+      # Parallel branch 2: Category routing → API calls → Merge → Analysis+Sim
+      - id: edge_intent_to_ifelse_category
+        source: node_ifelse_intent
+        sourceHandle: "true"
+        target: node_ifelse_category
+        targetHandle: target
+        type: custom
+
+      # Food branch → USDA → Check → (OK? merge : web search → merge)
       - id: edge_ifelse_to_usda
-        source: node_ifelse
-        sourceHandle: "if-true"
+        source: node_ifelse_category
+        sourceHandle: "true"
         target: node_http_usda
         targetHandle: target
         type: custom
 
-      - id: edge_ifelse_to_off
-        source: node_ifelse
-        sourceHandle: "if-true"
-        target: node_http_off
+      - id: edge_usda_to_check_food
+        source: node_http_usda
+        sourceHandle: source
+        target: node_code_check_food
         targetHandle: target
         type: custom
 
-      # IF false (supplement/medication) → OpenFDA
-      - id: edge_ifelse_to_fda
-        source: node_ifelse
-        sourceHandle: "if-false"
+      - id: edge_check_food_to_ifelse
+        source: node_code_check_food
+        sourceHandle: source
+        target: node_ifelse_food_ok
+        targetHandle: target
+        type: custom
+
+      - id: edge_food_ok_to_merge
+        source: node_ifelse_food_ok
+        sourceHandle: "true"
+        target: node_merge_api
+        targetHandle: target
+        type: custom
+
+      - id: edge_food_fail_to_search
+        source: node_ifelse_food_ok
+        sourceHandle: "false"
+        target: node_http_search_food
+        targetHandle: target
+        type: custom
+
+      - id: edge_search_food_to_merge
+        source: node_http_search_food
+        sourceHandle: source
+        target: node_merge_api
+        targetHandle: target
+        type: custom
+
+      # Medication branch → Brand Map → OpenFDA → Check → (OK? merge : web search → merge)
+      - id: edge_ifelse_to_brand_map
+        source: node_ifelse_category
+        sourceHandle: "false"
+        target: node_code_brand_map
+        targetHandle: target
+        type: custom
+
+      - id: edge_brand_map_to_fda
+        source: node_code_brand_map
+        sourceHandle: source
         target: node_http_fda
         targetHandle: target
         type: custom
 
-      # All branches merge
-      - id: edge_usda_to_merge
-        source: node_http_usda
-        sourceHandle: source
-        target: node_merge_api
-        targetHandle: target
-        type: custom
-
-      - id: edge_off_to_merge
-        source: node_http_off
-        sourceHandle: source
-        target: node_merge_api
-        targetHandle: target
-        type: custom
-
-      - id: edge_fda_to_merge
+      - id: edge_fda_to_check_med
         source: node_http_fda
         sourceHandle: source
+        target: node_code_check_med
+        targetHandle: target
+        type: custom
+
+      - id: edge_check_med_to_ifelse
+        source: node_code_check_med
+        sourceHandle: source
+        target: node_ifelse_med_ok
+        targetHandle: target
+        type: custom
+
+      - id: edge_med_ok_to_merge
+        source: node_ifelse_med_ok
+        sourceHandle: "true"
         target: node_merge_api
         targetHandle: target
         type: custom
 
-      - id: edge_merge_to_crossref
+      - id: edge_med_fail_to_search
+        source: node_ifelse_med_ok
+        sourceHandle: "false"
+        target: node_http_search_med
+        targetHandle: target
+        type: custom
+
+      - id: edge_search_med_to_merge
+        source: node_http_search_med
+        sourceHandle: source
+        target: node_merge_api
+        targetHandle: target
+        type: custom
+
+      # Merge → Combined Analysis + Simulation
+      - id: edge_merge_to_analysis_sim
         source: node_merge_api
         sourceHandle: source
-        target: node_llm_crossref
+        target: node_llm_analysis_sim
         targetHandle: target
         type: custom
 
-      - id: edge_crossref_to_sim
-        source: node_llm_crossref
-        sourceHandle: source
-        target: node_llm_sim
-        targetHandle: target
-        type: custom
-
-      - id: edge_sim_to_validate
-        source: node_llm_sim
+      # Analysis+Sim → Validate → Answer
+      - id: edge_analysis_sim_to_validate
+        source: node_llm_analysis_sim
         sourceHandle: source
         target: node_code_validate
         targetHandle: target
         type: custom
 
-      - id: edge_validate_to_answer
+      - id: edge_validate_to_answer_sim
         source: node_code_validate
         sourceHandle: source
-        target: node_answer
+        target: node_answer_sim
         targetHandle: target
         type: custom

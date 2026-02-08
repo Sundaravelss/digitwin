@@ -50,7 +50,11 @@ const BiologicalData = () => {
                     <Icon className="w-4 h-4 text-primary" />
                     <span className="text-xs text-muted-foreground">{marker.name}</span>
                   </div>
-                  <p className="text-xl font-bold text-foreground">
+                  <p className={`text-xl font-bold ${
+                    marker.status === "normal" || marker.status === "optimal"
+                      ? "text-foreground"
+                      : "text-orange-600 dark:text-orange-400"
+                  }`}>
                     {marker.value} <span className="text-sm font-normal text-muted-foreground">{marker.unit}</span>
                   </p>
                   <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded-full ${

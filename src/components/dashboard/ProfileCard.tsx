@@ -1,7 +1,10 @@
 import { ExternalLink } from "lucide-react";
 import { profileCardData } from "@/data/patientData";
+import { useUserAvatar } from "@/context/UserAvatarContext";
 
 const ProfileCard = () => {
+  const { userPhotoUrl } = useUserAvatar();
+
   return <div className="health-card overflow-hidden">
       {/* Gradient banner */}
       <div className="h-16 bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5" />
@@ -9,8 +12,12 @@ const ProfileCard = () => {
       {/* Content */}
       <div className="px-5 -mt-8">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center text-2xl border-4 border-card shadow-md">
-            👤
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/30 to-primary/60 flex items-center justify-center text-2xl border-4 border-card shadow-md overflow-hidden">
+            {userPhotoUrl ? (
+              <img src={userPhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              "👤"
+            )}
           </div>
           <div className="pt-8">
             <h4 className="font-semibold text-foreground">{profileCardData.name}</h4>

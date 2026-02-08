@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { optionalEnv } from "../../_lib/env";
-import { difyStreamQuery, type DifyThinkingStep } from "../../_lib/dify";
+import { difyWorkflowRun, type DifyThinkingStep } from "../../_lib/dify";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 type TreatmentSimRequest = {
   patientProfile: {
@@ -67,6 +67,20 @@ type TreatmentSimResponse = {
   source: "ai_simulation" | "dify_enhanced" | "demo";
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapDifyProjections(raw: any[]): BiomarkerProjection[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((p) => ({
+    day: p.day ?? 0,
+    bloodPressure: p.blood_pressure || "130/85",
+    glucoseMgDl: p.glucose_mg_dl ?? 100,
+    restingHeartRate: p.resting_heart_rate ?? 72,
+    hrvMs: p.hrv_ms ?? 45,
+    inflammationIndex: Math.round((p.crp_mg_l ?? 3) * 10), // CRP to 0-100 index
+    overallHealth: p.overall_health ?? 50,
+  }));
+}
+
 function generateDemoProjections(
   baseline: TreatmentSimRequest["patientProfile"]["biomarkers"],
   days: number,
@@ -98,6 +112,133 @@ function generateDemoProjections(
   return projections;
 }
 
+function buildDemoResponse(
+  treatment: TreatmentSimRequest["treatment"],
+  patientProfile: TreatmentSimRequest["patientProfile"],
+  simulationDays: number
+): TreatmentSimResponse {
+  const demoTreatments: Record<string, Partial<TreatmentSimResponse>> = {
+    metformin: {
+      treatmentName: "Metformin 500mg",
+      efficacyScore: 82,
+      riskScore: 15,
+      expectedOutcomes: {
+        positive: [
+          "Blood glucose reduction of 15-20% expected within 4 weeks",
+          "HbA1c improvement of 1-1.5% over 3 months",
+          "Potential weight stabilization or modest loss",
+          "Improved insulin sensitivity",
+        ],
+        risks: [
+          "Lactic acidosis (rare, monitor kidney function)",
+          "B12 deficiency with long-term use",
+        ],
+        sideEffects: [
+          "GI discomfort (usually resolves in 2-4 weeks)",
+          "Metallic taste",
+          "Reduced appetite",
+        ],
+      },
+      alternativeTreatments: [
+        { name: "Lifestyle modification only", efficacy: 45, reason: "Lower efficacy but no medication risks" },
+        { name: "GLP-1 agonist", efficacy: 88, reason: "Higher efficacy, injectable, weight loss benefit" },
+        { name: "SGLT2 inhibitor", efficacy: 78, reason: "Cardiovascular benefits, weight loss" },
+      ],
+      monitoringRecommendations: [
+        "Check HbA1c at baseline and every 3 months",
+        "Monitor kidney function (eGFR) every 6 months",
+        "Check B12 levels annually",
+        "Track fasting glucose weekly initially",
+      ],
+      clinicalNotes: "First-line treatment for type 2 diabetes. Start low (500mg) and titrate based on tolerance. Good safety profile in patients without renal impairment.",
+    },
+    lisinopril: {
+      treatmentName: "Lisinopril 10mg",
+      efficacyScore: 78,
+      riskScore: 20,
+      expectedOutcomes: {
+        positive: [
+          "Blood pressure reduction of 10-15 mmHg systolic expected",
+          "Cardiovascular protection benefits",
+          "Renal protection in diabetic patients",
+          "Reduced left ventricular hypertrophy over time",
+        ],
+        risks: [
+          "Hypotension (especially first dose)",
+          "Angioedema (rare but serious)",
+          "Hyperkalemia",
+        ],
+        sideEffects: [
+          "Dry cough (10-15% of patients)",
+          "Dizziness, especially when standing",
+          "Fatigue initially",
+        ],
+      },
+      alternativeTreatments: [
+        { name: "ARB (Losartan)", efficacy: 75, reason: "Similar efficacy, no cough side effect" },
+        { name: "Calcium channel blocker", efficacy: 72, reason: "Different mechanism, good for isolated systolic HTN" },
+        { name: "Thiazide diuretic", efficacy: 70, reason: "Cost-effective, good add-on therapy" },
+      ],
+      monitoringRecommendations: [
+        "Check blood pressure 2-4 weeks after starting",
+        "Monitor potassium and creatinine at 1-2 weeks",
+        "Assess for cough at each visit",
+        "Annual metabolic panel",
+      ],
+      clinicalNotes: "Excellent first-line agent for hypertension with diabetes or heart failure. Avoid in pregnancy. Monitor for cough which may require switch to ARB.",
+    },
+    default: {
+      efficacyScore: 70,
+      riskScore: 25,
+      expectedOutcomes: {
+        positive: [
+          "Expected improvement in targeted biomarkers",
+          "Symptom relief anticipated within treatment window",
+          "Potential quality of life improvement",
+        ],
+        risks: [
+          "Individual response may vary",
+          "Drug interactions should be monitored",
+          "Contraindications should be reviewed",
+        ],
+        sideEffects: [
+          "Common side effects vary by treatment",
+          "Monitor for unexpected reactions",
+        ],
+      },
+      alternativeTreatments: [
+        { name: "Lifestyle modification", efficacy: 50, reason: "Foundation of any treatment plan" },
+        { name: "Alternative medication class", efficacy: 65, reason: "May be considered if intolerant" },
+      ],
+      monitoringRecommendations: [
+        "Regular follow-up appointments",
+        "Monitor for treatment response",
+        "Track side effects",
+        "Adjust as needed based on response",
+      ],
+      clinicalNotes: "Treatment simulation based on general clinical principles. Individualized assessment recommended.",
+    },
+  };
+
+  const treatmentKey = treatment.name.toLowerCase().replace(/\s+\d+mg/g, "").trim();
+  const demoData = demoTreatments[treatmentKey] || demoTreatments.default;
+  const isPositive = (demoData.efficacyScore || 70) > 60;
+
+  return {
+    treatmentName: treatment.name + (treatment.dosage ? ` ${treatment.dosage}` : ""),
+    efficacyScore: demoData.efficacyScore || 70,
+    riskScore: demoData.riskScore || 25,
+    projections: generateDemoProjections(patientProfile.biomarkers, simulationDays, isPositive),
+    expectedOutcomes: demoData.expectedOutcomes || { positive: [], risks: [], sideEffects: [] },
+    drugInteractions: [],
+    thinkingSteps: [],
+    alternativeTreatments: demoData.alternativeTreatments || [],
+    monitoringRecommendations: demoData.monitoringRecommendations || [],
+    clinicalNotes: demoData.clinicalNotes || "",
+    source: "demo",
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as TreatmentSimRequest;
@@ -107,232 +248,93 @@ export async function POST(req: Request) {
       return new NextResponse("Treatment name is required", { status: 400 });
     }
 
-    // Demo responses for common treatments
-    const demoTreatments: Record<string, Partial<TreatmentSimResponse>> = {
-      metformin: {
-        treatmentName: "Metformin 500mg",
-        efficacyScore: 82,
-        riskScore: 15,
-        expectedOutcomes: {
-          positive: [
-            "Blood glucose reduction of 15-20% expected within 4 weeks",
-            "HbA1c improvement of 1-1.5% over 3 months",
-            "Potential weight stabilization or modest loss",
-            "Improved insulin sensitivity",
-          ],
-          risks: [
-            "Lactic acidosis (rare, monitor kidney function)",
-            "B12 deficiency with long-term use",
-          ],
-          sideEffects: [
-            "GI discomfort (usually resolves in 2-4 weeks)",
-            "Metallic taste",
-            "Reduced appetite",
-          ],
-        },
-        alternativeTreatments: [
-          { name: "Lifestyle modification only", efficacy: 45, reason: "Lower efficacy but no medication risks" },
-          { name: "GLP-1 agonist", efficacy: 88, reason: "Higher efficacy, injectable, weight loss benefit" },
-          { name: "SGLT2 inhibitor", efficacy: 78, reason: "Cardiovascular benefits, weight loss" },
-        ],
-        monitoringRecommendations: [
-          "Check HbA1c at baseline and every 3 months",
-          "Monitor kidney function (eGFR) every 6 months",
-          "Check B12 levels annually",
-          "Track fasting glucose weekly initially",
-        ],
-        clinicalNotes: "First-line treatment for type 2 diabetes. Start low (500mg) and titrate based on tolerance. Good safety profile in patients without renal impairment.",
-      },
-      lisinopril: {
-        treatmentName: "Lisinopril 10mg",
-        efficacyScore: 78,
-        riskScore: 20,
-        expectedOutcomes: {
-          positive: [
-            "Blood pressure reduction of 10-15 mmHg systolic expected",
-            "Cardiovascular protection benefits",
-            "Renal protection in diabetic patients",
-            "Reduced left ventricular hypertrophy over time",
-          ],
-          risks: [
-            "Hypotension (especially first dose)",
-            "Angioedema (rare but serious)",
-            "Hyperkalemia",
-          ],
-          sideEffects: [
-            "Dry cough (10-15% of patients)",
-            "Dizziness, especially when standing",
-            "Fatigue initially",
-          ],
-        },
-        alternativeTreatments: [
-          { name: "ARB (Losartan)", efficacy: 75, reason: "Similar efficacy, no cough side effect" },
-          { name: "Calcium channel blocker", efficacy: 72, reason: "Different mechanism, good for isolated systolic HTN" },
-          { name: "Thiazide diuretic", efficacy: 70, reason: "Cost-effective, good add-on therapy" },
-        ],
-        monitoringRecommendations: [
-          "Check blood pressure 2-4 weeks after starting",
-          "Monitor potassium and creatinine at 1-2 weeks",
-          "Assess for cough at each visit",
-          "Annual metabolic panel",
-        ],
-        clinicalNotes: "Excellent first-line agent for hypertension with diabetes or heart failure. Avoid in pregnancy. Monitor for cough which may require switch to ARB.",
-      },
-      default: {
-        efficacyScore: 70,
-        riskScore: 25,
-        expectedOutcomes: {
-          positive: [
-            "Expected improvement in targeted biomarkers",
-            "Symptom relief anticipated within treatment window",
-            "Potential quality of life improvement",
-          ],
-          risks: [
-            "Individual response may vary",
-            "Drug interactions should be monitored",
-            "Contraindications should be reviewed",
-          ],
-          sideEffects: [
-            "Common side effects vary by treatment",
-            "Monitor for unexpected reactions",
-          ],
-        },
-        alternativeTreatments: [
-          { name: "Lifestyle modification", efficacy: 50, reason: "Foundation of any treatment plan" },
-          { name: "Alternative medication class", efficacy: 65, reason: "May be considered if intolerant" },
-        ],
-        monitoringRecommendations: [
-          "Regular follow-up appointments",
-          "Monitor for treatment response",
-          "Track side effects",
-          "Adjust as needed based on response",
-        ],
-        clinicalNotes: "Treatment simulation based on general clinical principles. Individualized assessment recommended.",
-      },
-    };
-
-    // Get demo response
-    const treatmentKey = treatment.name.toLowerCase().replace(/\s+\d+mg/g, "").trim();
-    const demoData = demoTreatments[treatmentKey] || demoTreatments.default;
-
-    const isPositive = (demoData.efficacyScore || 70) > 60;
-    const projections = generateDemoProjections(
-      patientProfile.biomarkers,
-      simulationDays,
-      isPositive
-    );
-
-    // Try Dify for enhanced simulation if available
-    let source: TreatmentSimResponse["source"] = "demo";
-    let clinicalNotes = demoData.clinicalNotes || "";
-    let thinkingSteps: DifyThinkingStep[] = [];
-    let drugInteractions: DrugInteraction[] = [];
-
-    const DIFY_API_KEY = optionalEnv("DIFY_API_KEY");
+    // ── Try Dify Treatment Workflow first ──
+    const DIFY_TREATMENT_KEY = optionalEnv("DIFY_TREATMENT_API_KEY");
     const DIFY_API_URL = optionalEnv("DIFY_API_URL");
-    const OPENAI_API_KEY = optionalEnv("OPENAI_API_KEY");
 
-    // Use Dify for drug interaction checking and clinical notes with streaming
-    if (DIFY_API_KEY && DIFY_API_URL) {
+    if (DIFY_TREATMENT_KEY && DIFY_API_URL) {
       try {
-        const query = `Treatment simulation and drug interaction check for: ${treatment.name} (${treatment.type}${treatment.dosage ? `, ${treatment.dosage}` : ""})
-
-Patient Information:
-- Age: ${patientProfile.age || "unknown"}
-- Sex: ${patientProfile.sex || "unknown"}
-- Conditions: ${patientProfile.conditions || "no known conditions"}
-- Current medications: ${patientProfile.currentMeds || "none"}
-- Known allergies: ${patientProfile.allergies || "NKDA"}
-
-Please analyze:
-1. Drug interactions with current medications
-2. Contraindications based on patient conditions
-3. Allergy cross-reactivity risks
-4. Expected treatment outcomes
-5. Monitoring recommendations
-
-Format your response with clear sections for INTERACTIONS, WARNINGS, and CLINICAL NOTES.`;
-
-        const difyResult = await difyStreamQuery({
-          query,
-          user: "digitwin-doctor",
+        const result = await difyWorkflowRun({
           inputs: {
-            treatment_name: treatment.name,
+            patient_id: "PT_001",
+            treatment_name: `${treatment.name}${treatment.dosage ? ` ${treatment.dosage}` : ""}`,
             treatment_type: treatment.type,
-            dosage: treatment.dosage || "",
-            patient_conditions: patientProfile.conditions || "",
-            current_meds: patientProfile.currentMeds || "",
-            allergies: patientProfile.allergies || "",
           },
+          user: "digitwin-doctor",
+          apiKeyEnv: "DIFY_TREATMENT_API_KEY",
         });
 
-        if (difyResult) {
-          thinkingSteps = difyResult.thinkingSteps;
-          
-          // Parse the response for drug interactions
-          const lines = difyResult.answer.split("\n");
-          let currentSection = "";
-          
-          for (const line of lines) {
-            const trimmed = line.trim().toLowerCase();
-            
-            if (trimmed.includes("interaction")) {
-              currentSection = "interactions";
-            } else if (trimmed.includes("warning") || trimmed.includes("caution") || trimmed.includes("contraindication")) {
-              currentSection = "warnings";
-            } else if (trimmed.includes("clinical note") || trimmed.includes("recommendation")) {
-              currentSection = "notes";
+        if (result?.status === "succeeded" && result.outputs) {
+          const outputText = (result.outputs.answer as string) ||
+            (result.outputs.text as string) ||
+            (result.outputs.result as string) || "";
+
+          if (outputText.trim()) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const wf: any = JSON.parse(outputText);
+
+              // Map Dify workflow JSON to TreatmentSimResponse
+              const thinkingSteps: DifyThinkingStep[] = Array.isArray(wf.thinking_steps)
+                ? wf.thinking_steps.map((s: string, i: number) => ({
+                    step: i + 1,
+                    title: s.replace(/^Step \d+:\s*/, ""),
+                    content: s,
+                    timestamp: new Date().toISOString(),
+                  }))
+                : [];
+
+              const drugInteractions: DrugInteraction[] = Array.isArray(wf.drug_interactions)
+                ? wf.drug_interactions.map((d: { drug?: string; severity?: string; description?: string }) => ({
+                    drug: d.drug || treatment.name,
+                    severity: (d.severity || "low") as DrugInteraction["severity"],
+                    description: d.description || "",
+                  }))
+                : [];
+
+              const alternativeTreatments = Array.isArray(wf.alternative_treatments)
+                ? wf.alternative_treatments.map((a: { name?: string; efficacy?: number; reason?: string }) => ({
+                    name: a.name || "",
+                    efficacy: a.efficacy || 50,
+                    reason: a.reason || "",
+                  }))
+                : [];
+
+              const response: TreatmentSimResponse = {
+                treatmentName: wf.treatment_name || treatment.name,
+                efficacyScore: wf.efficacy_score ?? 75,
+                riskScore: wf.risk_score ?? 20,
+                projections: mapDifyProjections(wf.projections),
+                expectedOutcomes: {
+                  positive: wf.expected_outcomes?.positive || [],
+                  risks: wf.expected_outcomes?.risks || [],
+                  sideEffects: wf.expected_outcomes?.side_effects || [],
+                },
+                drugInteractions,
+                thinkingSteps,
+                alternativeTreatments,
+                monitoringRecommendations: wf.monitoring_recommendations || [],
+                clinicalNotes: wf.clinical_notes || "",
+                source: "dify_enhanced",
+              };
+
+              return NextResponse.json(response);
+            } catch {
+              // JSON parse failed, fall through to demo
+              console.error("Failed to parse Dify treatment workflow JSON");
             }
-            
-            // Extract bullet points
-            if (line.trim().match(/^[-•*]\s/) || line.trim().match(/^\d+\.\s/)) {
-              const content = line.trim().replace(/^[-•*\d.]+\s*/, "").trim();
-              if (content && currentSection === "interactions") {
-                // Determine severity from content
-                let severity: DrugInteraction["severity"] = "low";
-                if (content.toLowerCase().includes("severe") || content.toLowerCase().includes("major") || content.toLowerCase().includes("contraindicated")) {
-                  severity = "contraindicated";
-                } else if (content.toLowerCase().includes("significant") || content.toLowerCase().includes("moderate")) {
-                  severity = "moderate";
-                } else if (content.toLowerCase().includes("high") || content.toLowerCase().includes("serious")) {
-                  severity = "high";
-                }
-                
-                drugInteractions.push({
-                  drug: patientProfile.currentMeds?.split(",")[0]?.trim() || treatment.name,
-                  severity,
-                  description: content,
-                });
-              }
-            }
-          }
-          
-          clinicalNotes = difyResult.answer;
-          source = "dify_enhanced";
-          
-          // Add default thinking steps if none were captured
-          if (thinkingSteps.length === 0) {
-            thinkingSteps = [
-              { step: 1, title: "Analyzing patient profile", content: `Reviewing conditions: ${patientProfile.conditions || "none"}`, timestamp: new Date().toISOString() },
-              { step: 2, title: "Checking drug interactions", content: `Evaluating ${treatment.name} against current medications`, timestamp: new Date().toISOString() },
-              { step: 3, title: "Generating clinical notes", content: "Preparing treatment recommendations", timestamp: new Date().toISOString() },
-            ];
           }
         }
-      } catch (difyErr) {
-        console.error("Dify enhancement failed:", difyErr);
-        // Add error step to thinking
-        thinkingSteps.push({
-          step: thinkingSteps.length + 1,
-          title: "Dify connection issue",
-          content: "Falling back to local analysis",
-          timestamp: new Date().toISOString(),
-        });
+      } catch (err) {
+        console.error("Dify treatment workflow error:", err);
       }
     }
 
-    // Use OpenAI for enhanced simulation if available and Dify didn't work
-    if (source === "demo" && OPENAI_API_KEY) {
+    // ── Fallback: Use OpenAI for clinical notes if available ──
+    const demo = buildDemoResponse(treatment, patientProfile, simulationDays);
+    const OPENAI_API_KEY = optionalEnv("OPENAI_API_KEY");
+
+    if (OPENAI_API_KEY) {
       try {
         const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -345,7 +347,7 @@ Format your response with clear sections for INTERACTIONS, WARNINGS, and CLINICA
             messages: [
               {
                 role: "system",
-                content: `You are a clinical decision support system for doctors. Provide a brief clinical note (2-3 sentences) about the expected outcomes of the treatment. Be professional and evidence-based. Do not provide specific medical advice - this is for simulation purposes only.`,
+                content: "You are a clinical decision support system for doctors. Provide a brief clinical note (2-3 sentences) about the expected outcomes of the treatment. Be professional and evidence-based. Do not provide specific medical advice - this is for simulation purposes only.",
               },
               {
                 role: "user",
@@ -363,8 +365,8 @@ Provide clinical simulation notes.`,
           const data = await openaiRes.json();
           const aiNotes = data.choices?.[0]?.message?.content;
           if (aiNotes) {
-            clinicalNotes = aiNotes;
-            source = "ai_simulation";
+            demo.clinicalNotes = aiNotes;
+            demo.source = "ai_simulation";
           }
         }
       } catch (err) {
@@ -372,25 +374,7 @@ Provide clinical simulation notes.`,
       }
     }
 
-    const response: TreatmentSimResponse = {
-      treatmentName: treatment.name + (treatment.dosage ? ` ${treatment.dosage}` : ""),
-      efficacyScore: demoData.efficacyScore || 70,
-      riskScore: demoData.riskScore || 25,
-      projections,
-      expectedOutcomes: demoData.expectedOutcomes || {
-        positive: [],
-        risks: [],
-        sideEffects: [],
-      },
-      drugInteractions,
-      thinkingSteps,
-      alternativeTreatments: demoData.alternativeTreatments || [],
-      monitoringRecommendations: demoData.monitoringRecommendations || [],
-      clinicalNotes,
-      source,
-    };
-
-    return NextResponse.json(response);
+    return NextResponse.json(demo);
   } catch (e) {
     console.error("Treatment simulation error:", e);
     return new NextResponse(

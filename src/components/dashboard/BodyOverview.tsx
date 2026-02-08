@@ -95,7 +95,12 @@ const BodyOverview = () => {
                   <span className="text-xs text-muted-foreground">{metric.label}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-foreground">{metric.value}</span>
+                  <span className={cn(
+                    "text-xl font-bold",
+                    metric.status === "normal"
+                      ? "text-foreground"
+                      : "text-orange-600 dark:text-orange-400"
+                  )}>{metric.value}</span>
                   <span className="text-xs text-muted-foreground">{metric.unit}</span>
                 </div>
                 <div className="mt-2">
@@ -103,7 +108,7 @@ const BodyOverview = () => {
                     "inline-block px-2 py-0.5 text-[10px] font-medium rounded-full capitalize",
                     metric.status === "normal"
                       ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      : "bg-red-500/15 text-red-600 dark:text-red-400"
                   )}>
                     {metric.status}
                   </span>

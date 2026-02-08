@@ -1,6 +1,7 @@
 import { Activity, Heart, Footprints, Moon, TrendingUp, Zap } from "lucide-react";
 import Avatar3D from "./Avatar3D";
 import { digiTwinData } from "@/data/patientData";
+import { useUserAvatar } from "@/context/UserAvatarContext";
 
 const iconMap: Record<string, typeof Heart> = {
   "Steps": Footprints,
@@ -11,6 +12,7 @@ const iconMap: Record<string, typeof Heart> = {
 
 const DigiTwinAvatar = () => {
   const integrityScore = digiTwinData.integrityScore;
+  const { generatedAvatarUrl, isGenerating } = useUserAvatar();
 
   const biomarkers = digiTwinData.biomarkers.map((b) => ({
     ...b,
@@ -64,13 +66,13 @@ const DigiTwinAvatar = () => {
                 </linearGradient>
               </defs>
             </svg>
-            
+
             {/* 3D Avatar inside ring */}
-            <div className="absolute inset-4 rounded-full overflow-hidden bg-gradient-to-b from-primary/20 to-primary/5">
-              <Avatar3D />
+            <div className="absolute inset-4 rounded-full overflow-hidden bg-gradient-to-b from-[#070b1e] to-[#0d1330]">
+              <Avatar3D generatedAvatarUrl={generatedAvatarUrl} isGenerating={isGenerating} />
             </div>
           </div>
-          
+
           {/* Integrity Score */}
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold text-foreground">{integrityScore}%</div>
@@ -94,8 +96,8 @@ const DigiTwinAvatar = () => {
                   </div>
                   <span className="text-sm text-muted-foreground">{marker.label}</span>
                 </div>
-                <div className="text-xl font-bold text-foreground">{marker.value}</div>
-                <div className={`text-sm flex items-center gap-1 ${marker.positive ? 'text-success' : 'text-warning'}`}>
+                <div className={`text-xl font-bold ${marker.positive ? 'text-foreground' : 'text-red-500 dark:text-red-400'}`}>{marker.value}</div>
+                <div className={`text-sm flex items-center gap-1 ${marker.positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
                   <TrendingUp className={`w-3 h-3 ${!marker.positive && 'rotate-180'}`} />
                   {marker.change}
                 </div>

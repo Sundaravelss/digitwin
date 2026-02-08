@@ -5,7 +5,7 @@ This guide explains how to set up **agentic Dify workflows** for DigiTwin's two 
 1. **Patient Space** -- Food, snack, or medication intake simulation with biomarker projections
 2. **Doctor Space** -- Treatment simulation with dosage, drug interactions, and outcome projections
 
-Both workflows are designed to be **agentic**: they autonomously retrieve data from the patient knowledge base (`src/data/patients.json`), call external APIs/web search, reason over patient-specific biomarkers and pharmacogenomics, and produce structured simulation outputs including text analysis and chart-ready data.
+Both workflows are designed to be **agentic**: they autonomously retrieve data from the patient knowledge base (`src/data/knowledge-base.md`), call external APIs/web search, reason over patient-specific biomarkers and pharmacogenomics, and produce structured simulation outputs including text analysis and chart-ready data.
 
 ---
 
@@ -61,7 +61,7 @@ Two ready-to-import Dify workflow DSL files are available in `docs/dify-workflow
 
 ### Import Steps
 
-1. **Create Knowledge Base first**: In Dify, go to **Knowledge** → **Create Knowledge Base** → name it `patient-profiles` → upload all 5 Markdown files from `docs/knowledge-base/` → wait for indexing to complete
+1. **Create Knowledge Base first**: In Dify, go to **Knowledge** → **Create Knowledge Base** → name it `patient-profiles` → upload the single consolidated knowledge base file `src/data/knowledge-base.md` → wait for indexing to complete. This file contains all 5 patient profiles with clinical narratives and metadata for filtering.
 2. **Copy your KB ID**: It's visible in the browser URL when viewing the KB (e.g. `https://cloud.dify.ai/datasets/abc123...` → the ID is `abc123...`)
 3. **Import workflow**: Go to **Studio** → **Create App** → **Import DSL** → upload the `.yml` file
 4. **Update KB reference**: Open the workflow, click the **Knowledge Retrieval** node(s), and select your `patient-profiles` knowledge base (replacing the placeholder `REPLACE_WITH_YOUR_KB_ID`)
@@ -79,9 +79,14 @@ Two ready-to-import Dify workflow DSL files are available in `docs/dify-workflow
 
 ---
 
-## Patient Data Source: `src/data/patients.json`
+## Patient Data Source: `src/data/knowledge-base.md`
 
-DigiTwin's knowledge base is the `patients.json` file containing **5 synthetic patients** with comprehensive medical profiles. This is the ground truth the Dify agent queries for every simulation.
+DigiTwin uses a **single markdown file** (`src/data/knowledge-base.md`) as the single source of truth for both the Dify knowledge base and the web application. This file contains **5 synthetic patients** with comprehensive medical profiles — rich clinical narrative sections for Dify RAG retrieval, plus embedded JSON blocks that the app parses at build time.
+
+**To regenerate** the knowledge base after editing patient data, run:
+```bash
+node scripts/build-knowledge-base.mjs
+```
 
 ### Patients Overview
 
@@ -208,25 +213,25 @@ When a patient uploads a food photo, mentions a snack, or logs a medication in t
 
 ### Knowledge Base Setup
 
-Create a Dify Knowledge Base named `patient-profiles` and upload the pre-built Markdown patient profiles from `docs/knowledge-base/`. Dify does **not** support `.json` files for knowledge base upload.
+Create a Dify Knowledge Base named `patient-profiles` and upload the single consolidated knowledge base file. This file contains all 5 patient profiles with rich clinical narratives optimized for RAG retrieval, plus metadata comments for filtering.
 
-**Recommended: Upload the 5 Markdown files** from `docs/knowledge-base/`:
+**Upload this single file:**
 
-| File | Patient | Size |
+| File | Content | Size |
 |------|---------|------|
-| `PT-001-Sundar-Selvaraj.md` | Sundar Selvaraj (32M, prediabetes) | ~15 KB |
-| `PT-002-Maria-Rodriguez.md` | Maria Rodriguez (47F, T2D + HTN) | ~12 KB |
-| `PT-003-James-Chen.md` | James Chen (33M, healthy athlete) | ~12 KB |
+| `src/data/knowledge-base.md` | All 5 patients — demographics, biomarkers, pharmacogenomics, conditions, allergies, medications, lifestyle, longitudinal data, clinical summaries | ~170 KB |
 | `PT-004-Sarah-Thompson.md` | Sarah Thompson (57F, complex multi-morbid) | ~15 KB |
 | `PT-005-Aisha-Okonkwo.md` | Aisha Okonkwo (31F, elite athlete, sickle cell carrier) | ~12 KB |
 
-These Markdown files contain the full clinical data from `src/data/patients.json` formatted for optimal RAG retrieval: structured tables, bolded abnormal values, prominent pharmacogenomics sections, clinical summaries, and longitudinal data. Upload all 5 files to a single Dify knowledge base.
+The file contains structured tables, bolded abnormal values, prominent pharmacogenomics sections, clinical summaries, and longitudinal data — optimized for Dify's RAG chunking and retrieval. Each patient section includes metadata comments for filtering:
+
+```
+<!-- PATIENT:PT-001 | name:Sundar Selvaraj | age:32 | gender:male | risk_level:moderate | health_score:76 | conditions:Prediabetes,Dyslipidemia -->
+```
 
 > **Why Markdown?** Dify's knowledge base only supports: XLS, MARKDOWN, EPUB, HTML, MDX, PPTX, VTT, XML, MSG, XLSX, PROPERTIES, CSV, DOC, TXT, EML, PDF, MD, PPT, DOCX, HTM. The Markdown format with tables provides better chunking and retrieval than raw JSON.
 
-**Alternative:** If you prefer JSON-style data, you can rename `patients.json` to `patients.txt` and upload it, but retrieval quality will be lower.
-
-**Source of truth:** `src/data/patients.json` remains the canonical data source for both the UI and the knowledge base files. If you modify patient data in the JSON, regenerate the Markdown files accordingly.
+**Source of truth:** `src/data/knowledge-base.md` is the single source of truth. The app imports it via `raw-loader` and parses the embedded JSON blocks at build time using `src/data/parseKnowledgeBase.ts`. To regenerate after editing, run `node scripts/build-knowledge-base.mjs`.
 
 Example excerpt from a Markdown patient profile (PT-001 Sundar Selvaraj):
 
@@ -1062,7 +1067,7 @@ Self-hosting gives you:
 ## Security Notes
 
 1. **Never commit API keys** to version control -- use `.env` and `.gitignore`
-2. **Patient data in `patients.json` is synthetic** -- safe for hackathon demo, but production systems must use real anonymized/consented data
+2. **Patient data in `knowledge-base.md` is synthetic** -- safe for hackathon demo, but production systems must use real anonymized/consented data
 3. **Pharmacogenomic data is highly sensitive** -- in production, this requires additional access controls
 4. **Rate limit your API routes** to prevent abuse
 5. **Validate Dify responses** server-side before sending to the client

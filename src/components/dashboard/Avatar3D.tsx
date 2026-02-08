@@ -1,16 +1,92 @@
+"use client";
+
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef, useMemo, Suspense } from "react";
-import { Mesh, Group, BufferAttribute } from "three";
-import { Float, MeshDistortMaterial } from "@react-three/drei";
+import { Mesh, Group, Vector3, CatmullRomCurve3 } from "three";
+import { useGLTF } from "@react-three/drei";
 
+const MODEL_URL = "/models/avatar.glb";
+
+interface Avatar3DProps {
+  generatedAvatarUrl?: string | null;
+  isGenerating?: boolean;
+}
+
+/** Loads the GLB human model and auto-rotates it */
+const HumanModel = () => {
+  const groupRef = useRef<Group>(null);
+  const { scene } = useGLTF(MODEL_URL);
+  const cloned = useMemo(() => scene.clone(), [scene]);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.4;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -0.85, 0]} scale={1.8}>
+      <primitive object={cloned} />
+    </group>
+  );
+};
+
+/** Spiral helix tube that wraps around the model */
+const SpiralHelix = ({
+  direction = 1,
+  color = "#00d4ff",
+}: {
+  direction?: number;
+  color?: string;
+}) => {
+  const meshRef = useRef<Mesh>(null);
+
+  const curve = useMemo(() => {
+    const points: Vector3[] = [];
+    const turns = 3;
+    const height = 2.4;
+    const radius = 0.7;
+    const segments = 150;
+    for (let i = 0; i <= segments; i++) {
+      const t = (i / segments) * turns * Math.PI * 2 * direction;
+      const y = (i / segments) * height - height / 2;
+      points.push(new Vector3(Math.cos(t) * radius, y, Math.sin(t) * radius));
+    }
+    return new CatmullRomCurve3(points);
+  }, [direction]);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.25;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <tubeGeometry args={[curve, 150, 0.012, 8, false]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={2}
+        transparent
+        opacity={0.45}
+      />
+    </mesh>
+  );
+};
+
+/** Floating particles distributed along spiral paths */
 const Particles = () => {
-  const count = 60;
+  const count = 40;
   const positions = useMemo(() => {
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 3;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 3;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 3;
+      const angle = (i / count) * Math.PI * 6;
+      const r = 0.55 + Math.random() * 0.4;
+      const y = (i / count) * 2.4 - 1.2;
+      pos[i * 3] = Math.cos(angle) * r + (Math.random() - 0.5) * 0.2;
+      pos[i * 3 + 1] = y + (Math.random() - 0.5) * 0.2;
+      pos[i * 3 + 2] = Math.sin(angle) * r + (Math.random() - 0.5) * 0.2;
     }
     return pos;
   }, []);
@@ -19,7 +95,7 @@ const Particles = () => {
 
   useFrame((state) => {
     if (pointsRef.current) {
-      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.05;
+      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.08;
     }
   });
 
@@ -33,160 +109,46 @@ const Particles = () => {
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial size={0.025} color="#00d4ff" transparent opacity={0.5} sizeAttenuation />
+      <pointsMaterial
+        size={0.025}
+        color="#00d4ff"
+        transparent
+        opacity={0.5}
+        sizeAttenuation
+      />
     </points>
   );
 };
 
-const HumanoidFigure = () => {
-  const groupRef = useRef<Group>(null);
-  const bodyRef = useRef<Mesh>(null);
-
-  useFrame((state) => {
-    if (groupRef.current) {
-      // Gentle floating and rotation animation
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
-      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.8) * 0.1;
-    }
-  });
-
-  return (
-    <group ref={groupRef} position={[0, -0.5, 0]}>
-      {/* Head */}
-      <mesh position={[0, 1.6, 0]}>
-        <sphereGeometry args={[0.25, 32, 32]} />
-        <MeshDistortMaterial
-          color="#00d4ff"
-          emissive="#0066ff"
-          emissiveIntensity={0.5}
-          wireframe
-          distort={0.1}
-          speed={2}
-        />
-      </mesh>
-
-      {/* Neck */}
-      <mesh position={[0, 1.3, 0]}>
-        <cylinderGeometry args={[0.08, 0.1, 0.15, 16]} />
-        <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-      </mesh>
-
-      {/* Torso */}
-      <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.2}>
-        <mesh ref={bodyRef} position={[0, 0.8, 0]}>
-          <capsuleGeometry args={[0.25, 0.6, 8, 16]} />
-          <MeshDistortMaterial
-            color="#00d4ff"
-            emissive="#0066ff"
-            emissiveIntensity={0.6}
-            wireframe
-            distort={0.05}
-            speed={1.5}
-          />
-        </mesh>
-      </Float>
-
-      {/* Pelvis */}
-      <mesh position={[0, 0.35, 0]}>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-      </mesh>
-
-      {/* Left Arm */}
-      <group position={[-0.35, 1.1, 0]} rotation={[0, 0, 0.3]}>
-        <mesh position={[0, -0.2, 0]}>
-          <capsuleGeometry args={[0.06, 0.3, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-        <mesh position={[0, -0.55, 0]}>
-          <capsuleGeometry args={[0.05, 0.25, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-      </group>
-
-      {/* Right Arm */}
-      <group position={[0.35, 1.1, 0]} rotation={[0, 0, -0.3]}>
-        <mesh position={[0, -0.2, 0]}>
-          <capsuleGeometry args={[0.06, 0.3, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-        <mesh position={[0, -0.55, 0]}>
-          <capsuleGeometry args={[0.05, 0.25, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-      </group>
-
-      {/* Left Leg */}
-      <group position={[-0.12, 0.15, 0]}>
-        <mesh position={[0, -0.25, 0]}>
-          <capsuleGeometry args={[0.08, 0.35, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-        <mesh position={[0, -0.7, 0]}>
-          <capsuleGeometry args={[0.06, 0.35, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-      </group>
-
-      {/* Right Leg */}
-      <group position={[0.12, 0.15, 0]}>
-        <mesh position={[0, -0.25, 0]}>
-          <capsuleGeometry args={[0.08, 0.35, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-        <mesh position={[0, -0.7, 0]}>
-          <capsuleGeometry args={[0.06, 0.35, 8, 16]} />
-          <meshStandardMaterial color="#00d4ff" wireframe emissive="#0066ff" emissiveIntensity={0.35} />
-        </mesh>
-      </group>
-
-      {/* Orbital rings */}
-      <OrbitRing radius={0.8} speed={1} rotationAxis="y" />
-      <OrbitRing radius={1} speed={0.7} rotationAxis="x" />
-      <OrbitRing radius={0.6} speed={1.3} rotationAxis="z" />
-
-      {/* Particles */}
-      <Particles />
-    </group>
-  );
-};
-
+/** Tilted orbital ring */
 const OrbitRing = ({
   radius,
   speed,
-  rotationAxis
+  tiltX = 0,
+  tiltZ = 0,
 }: {
   radius: number;
   speed: number;
-  rotationAxis: "x" | "y" | "z";
+  tiltX?: number;
+  tiltZ?: number;
 }) => {
   const ringRef = useRef<Mesh>(null);
 
   useFrame((state) => {
     if (ringRef.current) {
-      const rotation = state.clock.elapsedTime * speed;
-      if (rotationAxis === "x") {
-        ringRef.current.rotation.x = rotation;
-        ringRef.current.rotation.y = Math.PI / 4;
-      } else if (rotationAxis === "y") {
-        ringRef.current.rotation.y = rotation;
-        ringRef.current.rotation.x = Math.PI / 6;
-      } else {
-        ringRef.current.rotation.z = rotation;
-        ringRef.current.rotation.x = Math.PI / 3;
-      }
+      ringRef.current.rotation.y = state.clock.elapsedTime * speed;
     }
   });
 
   return (
-    <mesh ref={ringRef} position={[0, 0.6, 0]}>
-      <torusGeometry args={[radius, 0.01, 16, 100]} />
+    <mesh ref={ringRef} rotation={[tiltX, 0, tiltZ]}>
+      <torusGeometry args={[radius, 0.008, 16, 100]} />
       <meshStandardMaterial
         color="#00d4ff"
         emissive="#00aaff"
-        emissiveIntensity={1.0}
+        emissiveIntensity={1.5}
         transparent
-        opacity={0.6}
+        opacity={0.4}
       />
     </mesh>
   );
@@ -199,30 +161,54 @@ const LoadingFallback = () => (
   </div>
 );
 
-const Avatar3D = () => {
+const Avatar3D = ({ isGenerating }: Avatar3DProps) => {
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
+      {isGenerating && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-sm z-10">
+          <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin" />
+          <span className="text-xs text-muted-foreground mt-2">
+            Generating...
+          </span>
+        </div>
+      )}
+
       <Suspense fallback={<LoadingFallback />}>
         <Canvas
-          camera={{ position: [0, 0.5, 3.5], fov: 45 }}
+          camera={{ position: [0, 0.3, 2.8], fov: 45 }}
           style={{ background: "transparent" }}
+          gl={{ alpha: true, antialias: true }}
         >
-          <ambientLight intensity={0.4} />
-          <pointLight position={[10, 10, 10]} intensity={1.2} color="#00d4ff" />
-          <pointLight position={[-10, -10, -10]} intensity={0.6} color="#0066ff" />
-          <pointLight position={[0, -5, 5]} intensity={0.3} color="#00ffaa" />
+          <ambientLight intensity={0.7} />
+          <directionalLight position={[5, 5, 5]} intensity={1.2} />
+          <pointLight position={[-5, 3, -5]} intensity={0.5} color="#0066ff" />
+          <pointLight position={[0, -3, 5]} intensity={0.3} color="#00ffaa" />
           <spotLight
-            position={[0, 5, 5]}
-            angle={0.3}
+            position={[0, 5, 3]}
+            angle={0.4}
             penumbra={1}
-            intensity={1.2}
-            color="#ffffff"
+            intensity={1.5}
           />
-          <HumanoidFigure />
+
+          <HumanModel />
+
+          {/* Single spiral helix */}
+          <SpiralHelix direction={1} color="#00d4ff" />
+
+          {/* Single orbital accent ring */}
+          <OrbitRing
+            radius={0.8}
+            speed={0.4}
+            tiltX={Math.PI / 4}
+          />
+
+          <Particles />
         </Canvas>
       </Suspense>
     </div>
   );
 };
+
+useGLTF.preload(MODEL_URL);
 
 export default Avatar3D;

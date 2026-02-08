@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fileToDataUrl } from "../_lib/base64";
 import { callOpenAIJson, OpenAIUserMessage } from "../_lib/openai";
-import { difyQuery } from "../_lib/dify";
+import { difyQuery, difyFileUpload, difyWorkflowRun } from "../_lib/dify";
 
 export const runtime = "nodejs";
 
@@ -196,6 +196,57 @@ export async function POST(req: Request): Promise<Response> {
         });
       } catch {
         difyNutritionData = null;
+      }
+    }
+
+    // Try Dify workflow for image analysis (Patient Intake Analyzer)
+    if (imageFile) {
+      try {
+        const uploaded = await difyFileUpload({
+          file: imageFile,
+          user: "digitwin-health-companion",
+        });
+
+        if (uploaded) {
+          const workflowResult = await difyWorkflowRun({
+            inputs: {
+              patient_id: "PT-001",
+              item_text: messageRaw || "Analyze this food image",
+              item_image_url: "",
+              simulation_window: "both",
+            },
+            files: [
+              {
+                type: "image",
+                transfer_method: "local_file",
+                upload_file_id: uploaded.id,
+              },
+            ],
+            user: "digitwin-health-companion",
+          });
+
+          if (
+            workflowResult?.status === "succeeded" &&
+            workflowResult.outputs
+          ) {
+            const outputText =
+              (workflowResult.outputs.text as string) ||
+              (workflowResult.outputs.result as string) ||
+              (workflowResult.outputs.output as string) ||
+              (workflowResult.outputs.answer as string) ||
+              null;
+
+            if (outputText?.trim()) {
+              return NextResponse.json({
+                reply: outputText,
+                source: "dify_workflow",
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Dify workflow image analysis error:", err);
+        // Fall through to OpenAI
       }
     }
 

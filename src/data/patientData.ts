@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import patientsJson from "./patients.json";
+import knowledgeBaseMd from "./knowledge-base.md";
+import { parseKnowledgeBase } from "./parseKnowledgeBase";
 
 // ==========================================
-// Core Data Access
+// Core Data Access — Single Source of Truth
+// The knowledge-base.md file serves as both the Dify KB
+// (clinical narrative for RAG) and the app data source
+// (embedded JSON blocks parsed at import time).
 // ==========================================
-const data = patientsJson as any;
-export const allPatients = data.patients as any[];
+const parsed = parseKnowledgeBase(knowledgeBaseMd);
+export const allPatients = parsed.patients as any[];
 export const currentPatient = allPatients[0]; // PT-001: Sundar Selvaraj
 
 const dashboard = currentPatient.dashboard;

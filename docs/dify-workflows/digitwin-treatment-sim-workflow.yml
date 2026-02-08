@@ -5,17 +5,56 @@
 #   Dify Dashboard → Create App → Import DSL → Upload this .yml
 #
 # Before importing:
-#   1. Create a Knowledge Base named "patient-profiles" and upload the 5
-#      Markdown files from docs/knowledge-base/
-#   2. Optionally create a "treatment-protocols" KB with drug formulary data
-#   3. After import, update the dataset_ids in Knowledge Retrieval nodes
-#   4. Set environment variables in the workflow settings
+#   1. Create a Knowledge Base named "knowledge-base" and upload
+#      the single knowledge base file: src/data/knowledge-base.md
+#   2. After import, open the Knowledge Retrieval node and select the
+#      "knowledge-base" dataset
+#   3. Set environment variables in the workflow settings (if any)
 #
-# Architecture:
-#   Start → KB Patient → KB Protocols → HTTP (OpenFDA)
-#     → LLM PGx Assessment → LLM Drug Interactions → LLM Contraindications
-#     → LLM Biomarker Simulation → LLM Clinical Summary
-#     → Code Validate → Answer
+# Architecture (v2 — with FDA fallback):
+#
+#   ┌─────────┐    ┌──────────────────┐
+#   │  START  │───▶│ KB: Patient      │──────────────────────────────────┐
+#   │         │    │ Clinical Profile │                                  │
+#   └────┬────┘    └──────────────────┘                                  │
+#        │                                                               │
+#        │         ┌──────────────────┐    ┌──────────────┐              │
+#        └────────▶│ HTTP: OpenFDA    │───▶│ Check OpenFDA│              │
+#                  │ Drug Lookup      │    │ Response     │              │
+#                  └──────────────────┘    └──────┬───────┘              │
+#                                            ┌────┴─────┐               │
+#                                            │ FDA OK?  │               │
+#                                            ├──Y───┐   │               │
+#                                            │  N   │   │               │
+#                                            ▼      │   │               │
+#                                          Web     │   │               │
+#                                          Search  │   │               │
+#                                            │      │   │               │
+#                                            └──┬───┘   │               │
+#                                               ▼       │               │
+#                                         ┌──────────┐  │               │
+#                                         │  Merge   │◀─┘               │
+#                                         │ Drug Data│                  │
+#                                         └────┬─────┘                  │
+#                                              └──────────┬─────────────┘
+#                                                         ▼
+#   ┌──────────────────────────────────────────────────────────────────────┐
+#   │                  Sequential LLM Analysis Chain                       │
+#   │                                                                      │
+#   │  PGx Assessment → Drug Interactions → Contraindications              │
+#   │       → Biomarker Trajectory → Clinical Summary                      │
+#   └──────────────────────────────────┬───────────────────────────────────┘
+#                                      ▼
+#                              ┌────────────────┐    ┌────────────┐
+#                              │ Code: Validate │───▶│   ANSWER   │
+#                              │ & Assemble     │    └────────────┘
+#                              └────────────────┘
+#
+# Key improvements over v1:
+#   • OpenFDA response validation with web search fallback (no silent failures)
+#   • Variable aggregator merges FDA data from either source
+#   • Streaming-friendly node titles for real-time "thinking" visibility
+#   • Consistent KB dataset_id with patient-intake workflow
 ##############################################################################
 app:
   description: >-
@@ -107,20 +146,22 @@ workflow:
         width: 244
 
       # ── 2. KNOWLEDGE RETRIEVAL — Patient Profile ─────────────────────────
+      # Source: knowledge-base.md (uploaded to Dify KB named "knowledge-base")
       - data:
-          title: Retrieve Patient Profile
+          title: Loading patient clinical profile...
           desc: >-
-            Queries the patient-profiles KB to pull the full clinical profile:
-            demographics, biomarkers (glucose, lipids, metabolic, liver,
-            thyroid, inflammatory, cardiovascular), pharmacogenomics (all CYP
-            enzymes), conditions, medications, allergies, family history,
-            lifestyle, longitudinal lab trends, and health scores.
+            Queries the "knowledge-base" Knowledge Base by patient_id to pull
+            the full clinical profile: demographics, biomarkers (glucose, lipids,
+            metabolic, liver, thyroid, inflammatory, cardiovascular),
+            pharmacogenomics (all CYP enzymes), conditions, medications,
+            allergies, family history, lifestyle, longitudinal lab trends, and
+            health scores. Source file: src/data/knowledge-base.md
           type: knowledge-retrieval
           query_variable_selector:
             - node_start
             - patient_id
           dataset_ids:
-            - "REPLACE_WITH_YOUR_KB_ID"
+            - "knowledge-base"
           retrieval_mode: multiple
           multiple_retrieval_config:
             top_k: 5
@@ -146,14 +187,14 @@ workflow:
 
       # ── 3. HTTP — OpenFDA Drug Data ─────────────────────────────────────
       - data:
-          title: OpenFDA Drug Lookup
+          title: Looking up drug information...
           desc: >-
             Fetches official drug label data from OpenFDA including
             indications, contraindications, warnings, drug interactions,
             mechanism of action, and pharmacokinetics.
           type: http-request
           method: get
-          url: "https://api.fda.gov/drug/label.json?search=openfda.brand_name:\"{{#node_start.treatment_name#}}\"+openfda.generic_name:\"{{#node_start.treatment_name#}}\"&limit=1"
+          url: "https://api.fda.gov/drug/label.json?search=(openfda.brand_name:{{#node_start.treatment_name#}}+OR+openfda.generic_name:{{#node_start.treatment_name#}})&limit=3"
           authorization:
             type: no-auth
             config: null
@@ -174,13 +215,135 @@ workflow:
         id: node_http_fda
         position:
           x: 380
-          y: 400
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 3a. CODE — Check OpenFDA Response ───────────────────────────────
+      - data:
+          title: Check OpenFDA Response
+          desc: >-
+            Validates the OpenFDA API response. If valid drug data is returned,
+            passes it through. Otherwise flags for web search fallback.
+          type: code
+          code_language: python3
+          code: |
+            import json
+
+            def main(http_body: str) -> dict:
+                try:
+                    data = json.loads(http_body)
+                    if isinstance(data, dict) and data.get("results") and len(data["results"]) > 0:
+                        return {"success": "yes", "api_data": http_body}
+                except Exception:
+                    pass
+                return {"success": "no", "api_data": ""}
+          variables:
+            - value_selector:
+                - node_http_fda
+                - body
+              variable: http_body
+          outputs:
+            success:
+              type: string
+              children: null
+            api_data:
+              type: string
+              children: null
+        height: 120
+        id: node_code_check_fda
+        position:
+          x: 680
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 3b. IF/ELSE — OpenFDA OK? ──────────────────────────────────────
+      - data:
+          title: OpenFDA OK?
+          desc: >-
+            If OpenFDA returned valid data, proceed to merge. Otherwise fall
+            back to web search.
+          type: if-else
+          cases:
+            - case_id: "true"
+              conditions:
+                - comparison_operator: contains
+                  id: cond_fda_ok
+                  value: "yes"
+                  variable_selector:
+                    - node_code_check_fda
+                    - success
+              logical_operator: and
+        height: 130
+        id: node_ifelse_fda_ok
+        position:
+          x: 980
+          y: 440
+        type: custom
+        width: 244
+
+      # ── 3c. HTTP — Web Search Fallback (Drug) ──────────────────────────
+      - data:
+          title: Web Search (Drug Fallback)
+          desc: >-
+            Fallback web search when OpenFDA API fails or returns no results.
+            Uses DuckDuckGo Instant Answer API (free, no key required).
+            Replace this URL with your preferred search API if needed.
+          type: http-request
+          method: get
+          url: "https://api.duckduckgo.com/?q={{#node_start.treatment_name#}}+drug+interactions+contraindications+side+effects+pharmacokinetics&format=json&no_html=1&skip_disambig=1"
+          authorization:
+            type: no-auth
+            config: null
+          headers: ""
+          params: ""
+          body:
+            type: none
+            data: ""
+          timeout:
+            connect: 10
+            read: 30
+            write: 10
+          retry:
+            max_retries: 2
+            retry_interval: 1000
+          variables: []
+        height: 140
+        id: node_http_search_fda
+        position:
+          x: 980
+          y: 620
+        type: custom
+        width: 244
+
+      # ── 3d. VARIABLE AGGREGATOR — Merge Drug Data ─────────────────────
+      - data:
+          title: Merge Drug Data
+          desc: >-
+            Combines results from OpenFDA API or its web search fallback
+            into a single variable for downstream LLM analysis.
+          type: variable-aggregator
+          advanced_settings:
+            group_enabled: false
+            groups: []
+          output_type: string
+          variables:
+            - - node_code_check_fda
+              - api_data
+            - - node_http_search_fda
+              - body
+        height: 100
+        id: node_merge_fda
+        position:
+          x: 1280
+          y: 440
         type: custom
         width: 244
 
       # ── 4. LLM — Pharmacogenomic Assessment ────────────────────────────
       - data:
-          title: "Step 1: Pharmacogenomic Assessment"
+          title: Analyzing pharmacogenomic compatibility...
           desc: >-
             CRITICAL NODE: Checks if the proposed drug is metabolized by CYP
             enzymes for which the patient has variant alleles. Determines
@@ -215,7 +378,7 @@ workflow:
 
                 FDA DRUG DATA:
 
-                {{#node_http_fda.body#}}
+                {{#node_merge_fda.output#}}
 
 
                 PROPOSED TREATMENT: {{#node_start.treatment_name#}}
@@ -223,6 +386,11 @@ workflow:
                 TYPE: {{#node_start.treatment_type#}}
 
                 DOSAGE: {{#node_start.dosage#}}
+
+
+                Note: Drug data may come from a web search fallback if the primary
+                OpenFDA API failed. Adapt your analysis accordingly — use your
+                clinical knowledge to supplement any missing fields.
 
 
                 Perform pharmacogenomic assessment:
@@ -276,17 +444,20 @@ workflow:
           variables: []
           memory:
             enabled: false
+            window:
+              enabled: false
+              size: 10
         height: 280
         id: node_llm_pgx
         position:
-          x: 680
-          y: 140
+          x: 1580
+          y: 200
         type: custom
         width: 244
 
       # ── 5. LLM — Drug Interaction Analysis ─────────────────────────────
       - data:
-          title: "Step 2: Drug Interaction Analysis"
+          title: Checking drug interactions...
           desc: >-
             Checks the proposed treatment against ALL current medications
             the patient takes. Classifies interaction severity and describes
@@ -321,7 +492,7 @@ workflow:
 
                 FDA DRUG DATA:
 
-                {{#node_http_fda.body#}}
+                {{#node_merge_fda.output#}}
 
 
                 PHARMACOGENOMIC ASSESSMENT:
@@ -356,6 +527,10 @@ workflow:
                 be checked for interactions.
 
 
+                Note: Drug data may come from a web search fallback if the primary
+                OpenFDA API failed. Adapt your analysis accordingly.
+
+
                 Return ONLY valid JSON:
 
                 {
@@ -381,17 +556,20 @@ workflow:
           variables: []
           memory:
             enabled: false
+            window:
+              enabled: false
+              size: 10
         height: 280
         id: node_llm_ddi
         position:
-          x: 980
-          y: 140
+          x: 1880
+          y: 200
         type: custom
         width: 244
 
       # ── 6. LLM — Contraindication & Organ Function Check ───────────────
       - data:
-          title: "Step 3: Contraindication & Safety Check"
+          title: Evaluating safety and contraindications...
           desc: >-
             Evaluates contraindications based on conditions, allergies, and
             organ function (eGFR for renal, ALT/AST for hepatic clearance).
@@ -424,7 +602,7 @@ workflow:
 
                 FDA DRUG DATA:
 
-                {{#node_http_fda.body#}}
+                {{#node_merge_fda.output#}}
 
 
                 PHARMACOGENOMIC ASSESSMENT:
@@ -499,17 +677,20 @@ workflow:
           variables: []
           memory:
             enabled: false
+            window:
+              enabled: false
+              size: 10
         height: 280
         id: node_llm_contra
         position:
-          x: 1280
-          y: 140
+          x: 2180
+          y: 200
         type: custom
         width: 244
 
       # ── 7. LLM — Biomarker Trajectory Simulation ───────────────────────
       - data:
-          title: "Step 4: Biomarker Trajectory Simulation"
+          title: Simulating biomarker trajectory...
           desc: >-
             Generates day-by-day biomarker projections starting from the
             patient's actual baseline values, modeling pharmacokinetic onset,
@@ -639,17 +820,20 @@ workflow:
           variables: []
           memory:
             enabled: false
+            window:
+              enabled: false
+              size: 10
         height: 280
         id: node_llm_trajectory
         position:
-          x: 1580
-          y: 140
+          x: 2480
+          y: 200
         type: custom
         width: 244
 
       # ── 8. LLM — Clinical Summary & Alternatives ───────────────────────
       - data:
-          title: "Step 5: Clinical Summary & Alternatives"
+          title: Generating clinical summary and alternatives...
           desc: >-
             Produces the clinical narrative, alternative treatment suggestions
             with pharmacogenomic advantages, and monitoring recommendations.
@@ -754,17 +938,20 @@ workflow:
           variables: []
           memory:
             enabled: false
+            window:
+              enabled: false
+              size: 10
         height: 280
         id: node_llm_summary
         position:
-          x: 1880
-          y: 140
+          x: 2780
+          y: 200
         type: custom
         width: 244
 
       # ── 9. CODE — Validate & Assemble Final Response ───────────────────
       - data:
-          title: Validate & Assemble Response
+          title: Validating simulation results...
           desc: >-
             Merges all LLM outputs into the final structured response,
             validates JSON, clamps values to realistic ranges, and verifies
@@ -937,7 +1124,7 @@ workflow:
         height: 200
         id: node_code_validate
         position:
-          x: 2180
+          x: 3080
           y: 282
         type: custom
         width: 244
@@ -950,7 +1137,7 @@ workflow:
         height: 80
         id: node_answer
         position:
-          x: 2480
+          x: 3380
           y: 282
         type: custom
         width: 244
@@ -972,7 +1159,43 @@ workflow:
         targetHandle: target
         type: custom
 
-      # KB and HTTP both feed into PGx assessment
+      # FDA → Check → IF/ELSE → (OK? merge : web search → merge)
+      - id: edge_fda_to_check
+        source: node_http_fda
+        sourceHandle: source
+        target: node_code_check_fda
+        targetHandle: target
+        type: custom
+
+      - id: edge_check_to_ifelse
+        source: node_code_check_fda
+        sourceHandle: source
+        target: node_ifelse_fda_ok
+        targetHandle: target
+        type: custom
+
+      - id: edge_fda_ok_to_merge
+        source: node_ifelse_fda_ok
+        sourceHandle: "true"
+        target: node_merge_fda
+        targetHandle: target
+        type: custom
+
+      - id: edge_fda_fail_to_search
+        source: node_ifelse_fda_ok
+        sourceHandle: "false"
+        target: node_http_search_fda
+        targetHandle: target
+        type: custom
+
+      - id: edge_search_fda_to_merge
+        source: node_http_search_fda
+        sourceHandle: source
+        target: node_merge_fda
+        targetHandle: target
+        type: custom
+
+      # KB and merged FDA data both feed into PGx assessment
       - id: edge_kb_to_pgx
         source: node_kb_patient
         sourceHandle: source
@@ -980,8 +1203,8 @@ workflow:
         targetHandle: target
         type: custom
 
-      - id: edge_fda_to_pgx
-        source: node_http_fda
+      - id: edge_merge_fda_to_pgx
+        source: node_merge_fda
         sourceHandle: source
         target: node_llm_pgx
         targetHandle: target
